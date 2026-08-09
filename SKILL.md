@@ -97,6 +97,7 @@ pix.save("output/xxx/figures/fig_XX_pN.png")
   "sections": [
     { "title": "一、方法灵感和发表期刊", "blocks": [
         { "type": "text", "text": "第一段……\n第二段……" },
+        { "type": "heading", "level": 2, "text": "二级小标题" },
         { "type": "figure", "fig_id": "fig_02", "note": "围绕这张图的讲解文字……" }
     ]},
     { "title": "二、方法", "blocks": [ ... ] },
@@ -108,6 +109,22 @@ pix.save("output/xxx/figures/fig_XX_pN.png")
 
 - `width_in` / `height_in` 从 `paper.json` 拷贝；需要调整大小时改这两个值即可。
 - `fig_id` 必须与 `figures` 里的 `id` 对应。
+- 文本中用 `**术语**` 标记加粗（仅用于专业名词/需强调处，如 **IAPL**、**CLIP**）。
+- `{"type":"heading","level":2|3,"text":"..."}` 可在部分内加二级/三级小标题。
+
+### 生成 docx 的格式规范（自动套用，写作时无需关心）
+
+| 元素 | 字体 | 字号 |
+|---|---|---|
+| 封面标题 | 黑体（西文 Times New Roman 斜体） | 18pt |
+| 一级标题 | 黑体 | 三号 16pt |
+| 二级标题 | 黑体 | 四号 14pt |
+| 三级标题 | 黑体 | 小四 12pt |
+| 正文 | 宋体 | 小四 12pt |
+| 图注/说明 | 宋体 | 10.5pt |
+
+- **英语字母和数字一律 Times New Roman 斜体**（中文正体不受影响，由排版脚本自动切分）
+- 正文中的专业名词用 `**...**` 标记加粗
 
 ### 讲解写作规范（质量核心）
 
