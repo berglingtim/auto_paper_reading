@@ -139,16 +139,27 @@ node tools/build_docx.js output/xxx/content.json "output/xxx/讲解_<标题>.doc
 
 ## Step 5 校验排版
 
+**默认只做结构化校验（不调用任何 Office 软件）**：
+
 ```bash
-python -c "from auto_paper_reading.cli import _verify_docx; ..."   # 或直接看下面
+python run.py papers/xxx.pdf --stage docx --out output/xxx
+# 输出 [check] 结构校验通过：N 段、M 表、K 张嵌入图片
 ```
 
-便捷做法：运行 `python run.py papers/xxx.pdf --stage docx --out output/xxx`，
-它会用 WPS 把 docx 转成 PDF 并渲染每页预览图到 `output/xxx/verify/page_*.png`。
-然后用 Read 逐个查看预览图，重点检查：
-- 中文是否正常显示（无乱码/方框）；
-- 图片是否完整、不超出版心、与讲解文字相邻；
-- 四部分标题结构是否清晰。
+需要**视觉渲染预览**（把 docx 转 PDF 渲染成图片人工查看排版）时，显式加 `--verify`：
+
+```bash
+python run.py papers/xxx.pdf --stage docx --out output/xxx --verify
+# 渲染 output/xxx/verify/page_*.png，用 Read 逐页查看
+```
+
+⚠️ **WPS 使用红线**：
+- 全流程只允许调用 **无头的 `kwpsconvert.exe word2pdf`**（命令行转换，不弹窗），
+  仅用于两处：`.doc/.docx` 输入转换、显式 `--verify` 的预览渲染。
+- **绝不**调用 `wps.exe` 打开 GUI、绝不自动用 WPS 打开/处理输出文件。
+- 生成 docx 后由用户自己在 WPS 中打开查看（项目不做任何 WPS 文件关联操作）。
+
+用 Read 检查预览图时重点看：中文无乱码、图片完整不超版心、四部分结构清晰。
 发现问题 → 修改 content.json → 重新生成。
 
 ## Step 6 交付与记录
@@ -164,7 +175,8 @@ python -c "from auto_paper_reading.cli import _verify_docx; ..."   # 或直接�
 
 | 现象 | 处理 |
 |---|---|
-| `.doc/.docx` 转换失败 | 确认 WPS 已安装；或设置环境变量 `WPS_CONVERT` 指向 `kwpsconvert.exe` |
+| `.doc/.docx` 转换失败 | 确认 WPS 已安装；或设置环境变量 `WPS_CONVERT` 指向 `kwpsconvert.exe`（仅无头转换，不弹窗） |
+| 需要渲染预览图 | `python run.py ... --stage docx --verify`（显式开启，才调用 WPS 无头转换） |
 | 扫描版 PDF（无文字层） | 提取不到图注/文本，向用户说明并询问是否需要 OCR |
 | 长论文（>50 页） | 讲解聚焦方法/变换过程，正文截断即可；必要时分段阅读再写 |
 | 裁剪出的图很乱 | 按 Step 2 的重裁剪片段手动框选 |

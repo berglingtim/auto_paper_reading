@@ -4,6 +4,17 @@
 
 ---
 
+## v0.1.2（2026-08-09）WPS 使用红线：默认流程不再调用 WPS
+
+**背景**：用户反馈"别让 WPS 打开它不该打开的东西"——此前 `wps.exe /t` GUI 转换测试会真的在 WPS 里打开文档，且生成 docx 后自动调 WPS 转 PDF 渲染。
+
+**本次改动**
+- `cli.py`：docx 阶段默认只做**结构化校验**（python-docx + zipfile，不依赖任何 Office 软件）；视觉渲染预览改为显式 `--verify` 才执行
+- 明确 WPS 使用红线：全流程仅允许无头的 `kwpsconvert.exe word2pdf`（不弹窗），用于 `.doc/.docx` 输入转换与显式 `--verify`；绝不调用 `wps.exe` 打开 GUI、绝不自动处理输出文件
+- `SKILL.md`：Step 5 校验方式与 WPS 红线写入工作流文档
+
+---
+
 ## v0.1.1（2026-08-09）修复配图裁剪 + 交付首篇论文讲解
 
 **本次改动**

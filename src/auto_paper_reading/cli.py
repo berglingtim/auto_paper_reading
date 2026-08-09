@@ -110,8 +110,25 @@ def _build_docx(content: dict, work_dir: Path, out_path: Path) -> Path:
     return out_path
 
 
+def _check_docx_structure(docx_path: Path) -> dict:
+    """不依赖任何 Office 软件的结构化校验：能打开、有段落、图片已嵌入。"""
+    import zipfile
+
+    import docx as pydocx
+
+    d = pydocx.Document(str(docx_path))
+    paras = len(d.paragraphs)
+    with zipfile.ZipFile(docx_path) as z:
+        media = sorted(n for n in z.namelist() if n.startswith("word/media/"))
+    tables = len(d.tables)
+    return {"paragraphs": paras, "tables": tables, "media": media}
+
+
 def _verify_docx(docx_path: Path, work_dir: Path) -> list[Path]:
-    """把生成的 docx 转成 PDF 并渲染成图片，供人工/agent 检查排版。"""
+    """（可选，需显式 --verify）用 WPS 无头转换 docx→PDF 并渲染成图片检查排版。
+
+    仅使用 kwpsconvert.exe（wpscli word2pdf，无头、不弹窗），绝不调用 wps.exe 打开 GUI。
+    """
     from .parser.convert import doc_to_pdf
 
     verify_dir = work_dir / "verify"
@@ -217,11 +234,22 @@ def run(args: argparse.Namespace) -> int:
         out_docx = work_dir / out_name
         out_docx = _build_docx(content, work_dir, out_docx)
         print(f"[done] docx 已生成: {out_docx}")
+        # 默认只做结构化校验（不调用任何 Office 软件）
         try:
-            pages = _verify_docx(out_docx, work_dir)
-            print(f"[verify] 渲染 {len(pages)} 页预览图到 {work_dir / 'verify'}")
+            check = _check_docx_structure(out_docx)
+            print(
+                f"[check] 结构校验通过：{check['paragraphs']} 段、{check['tables']} 表、"
+                f"{len(check['media'])} 张嵌入图片"
+            )
         except Exception as e:
-            print(f"[warn] 校验预览失败: {e}")
+            print(f"[warn] 结构校验失败: {e}")
+        # 视觉渲染预览需显式 --verify（会调用 WPS 无头转换，不弹窗）
+        if getattr(args, "verify", False):
+            try:
+                pages = _verify_docx(out_docx, work_dir)
+                print(f"[verify] 渲染 {len(pages)} 页预览图到 {work_dir / 'verify'}")
+            except Exception as e:
+                print(f"[warn] 渲染预览失败: {e}")
         return 0
 
     print(f"[error] 未知阶段: {args.stage}", file=sys.stderr)
@@ -241,6 +269,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--text-provider", choices=["deepseek", "kimi", "openai", "none"], default="none")
     parser.add_argument("--vision-provider", choices=["kimi", "openai", "none"], default="none")
     parser.add_argument("--max-chars", type=int, default=80_000, help="送入 LLM 的正文最大字符数")
+    parser.add_argument(
+        "--verify",
+        action="store_true",
+        help="生成 docx 后用 WPS 无头转换渲染预览图（默认只做结构化校验，不调用 Office 软件）",
+    )
     args = parser.parse_args(argv)
     return run(args)
 
