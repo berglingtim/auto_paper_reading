@@ -22,6 +22,7 @@ papers/*
 _conv_out/
 _test_*
 ~$*
+.pytest_tmp/
 
 # 系统
 Thumbs.db

@@ -7,6 +7,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from auto_paper_reading.parser import parse_paper  # noqa: E402
 from auto_paper_reading.parser.convert import doc_to_pdf, find_wps_convert  # noqa: E402
 
 
@@ -23,3 +24,16 @@ def test_docx_to_pdf(tmp_path):
     pdf = doc_to_pdf(src, tmp_path / "out")
     assert pdf.exists()
     assert pdf.suffix == ".pdf"
+
+
+def test_docx_requires_allow_wps(tmp_path):
+    """未显式允许 WPS 时，.docx 输入必须直接报错（不触发任何 WPS 调用）。"""
+    import docx as pydocx
+
+    src = tmp_path / "t.docx"
+    d = pydocx.Document()
+    d.add_paragraph("hello")
+    d.save(src)
+
+    with pytest.raises(RuntimeError, match="allow-wps"):
+        parse_paper(src, work_dir=tmp_path / "work")

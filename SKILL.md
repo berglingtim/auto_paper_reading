@@ -32,8 +32,16 @@ description: >
 ## Step 1 解析与裁剪
 
 ```bash
+# PDF 输入：无需任何额外授权
 python run.py papers/xxx.pdf --stage prep --out output/xxx
+
+# .doc / .docx 输入：需要显式 --allow-wps（调用 WPS 无头转换 kwpsconvert.exe word2pdf）
+python run.py papers/xxx.docx --stage prep --out output/xxx --allow-wps
 ```
+
+⚠️ **修改范围红线**：本工作流只允许修改/读写 `C:\Users\Tim\Desktop\auto_paper_reading` 工作区内的内容；
+不触碰 360、注册表、系统设置、工作区外任何文件。360 等安全软件对"办公软件自动化"可能误报，
+是否放行由用户自行在安全软件界面决定，本工作流不代为操作。
 
 产物：
 - `output/xxx/paper.json`：标题、作者、期刊/会议、摘要、全文、配图清单（图注、页码、坐标）
@@ -175,8 +183,10 @@ python run.py papers/xxx.pdf --stage docx --out output/xxx --verify
 
 | 现象 | 处理 |
 |---|---|
+| `.doc/.docx` 报"需要 --allow-wps" | 该格式必须经 WPS 无头转换才能解析；确认后显式加 `--allow-wps` 重跑 |
 | `.doc/.docx` 转换失败 | 确认 WPS 已安装；或设置环境变量 `WPS_CONVERT` 指向 `kwpsconvert.exe`（仅无头转换，不弹窗） |
 | 需要渲染预览图 | `python run.py ... --stage docx --verify`（显式开启，才调用 WPS 无头转换） |
+| 安全软件误报 | 360 等对"办公软件自动化"可能报警（误报），是否放行由用户在安全软件界面自行决定 |
 | 扫描版 PDF（无文字层） | 提取不到图注/文本，向用户说明并询问是否需要 OCR |
 | 长论文（>50 页） | 讲解聚焦方法/变换过程，正文截断即可；必要时分段阅读再写 |
 | 裁剪出的图很乱 | 按 Step 2 的重裁剪片段手动框选 |

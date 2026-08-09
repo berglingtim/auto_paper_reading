@@ -4,6 +4,21 @@
 
 ---
 
+## v0.1.3（2026-08-09）修改范围锁定工作区 + WPS 全部改为显式 opt-in
+
+**背景**：用户明确"能修改的范围仅限本工作区"；且此前 360 对 kimi.exe 驱动 wps.exe 的行为误报（自动化办公软件属安全软件敏感行为）。
+
+**本次改动**
+- `parser/__init__.py`：`.doc/.docx` 解析默认拒绝调用 WPS，必须显式 `--allow-wps` 才走 `kwpsconvert.exe word2pdf` 无头转换，否则直接报错并提示
+- `cli.py`：新增 `--allow-wps` 参数（默认关闭）；docx 阶段默认只做结构化校验（不调用 Office）
+- `pytest.ini`：`basetemp` 收进工作区 `.pytest_tmp/`，测试不再写系统临时目录
+- `SKILL.md`：写入"修改范围红线"（仅工作区）+ WPS 显式 opt-in 说明
+- 测试：新增 `test_docx_requires_allow_wps`，共 12 个用例全部通过
+
+**当前所有 WPS 调用点均为用户显式触发**：`.doc/.docx` 输入转换（--allow-wps）、预览渲染（--verify）。
+
+---
+
 ## v0.1.2（2026-08-09）WPS 使用红线：默认流程不再调用 WPS
 
 **背景**：用户反馈"别让 WPS 打开它不该打开的东西"——此前 `wps.exe /t` GUI 转换测试会真的在 WPS 里打开文档，且生成 docx 后自动调 WPS 转 PDF 渲染。

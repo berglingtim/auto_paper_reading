@@ -166,7 +166,7 @@ def run(args: argparse.Namespace) -> int:
     # ---- 阶段 1：解析 + 裁剪 ----
     if args.stage in ("prep", "content", "full"):
         print(f"[1/3] 解析论文: {paper_path}")
-        paper = parse_paper(paper_path, work_dir)
+        paper = parse_paper(paper_path, work_dir, allow_wps=getattr(args, "allow_wps", False))
         (work_dir / "paper.json").write_text(paper.to_json(), encoding="utf-8")
         _print_summary(paper)
     else:
@@ -273,6 +273,12 @@ def main(argv: list[str] | None = None) -> int:
         "--verify",
         action="store_true",
         help="生成 docx 后用 WPS 无头转换渲染预览图（默认只做结构化校验，不调用 Office 软件）",
+    )
+    parser.add_argument(
+        "--allow-wps",
+        action="store_true",
+        help="允许调用 WPS 无头转换（kwpsconvert.exe word2pdf）解析 .doc/.docx 输入。"
+        "默认关闭；注意部分安全软件可能对办公软件自动化行为误报，请自行判断。",
     )
     args = parser.parse_args(argv)
     return run(args)
