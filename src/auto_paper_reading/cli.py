@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -30,6 +31,13 @@ for _stream in (sys.stdout, sys.stderr):
         _stream.reconfigure(encoding="utf-8", errors="replace")
     except (AttributeError, ValueError):
         pass
+
+
+def _safe_filename(name: str, max_len: int = 80) -> str:
+    """把任意字符串净化为安全的文件名（防路径分隔符/保留字符/空名）。"""
+    name = re.sub(r'[\\/:*?"<>|\x00-\x1f]+', "_", name or "")
+    name = name.strip().strip(". ")
+    return (name[:max_len] or "paper")
 
 from .docx_content import normalize_content, save_content
 from .explain import generate_content
@@ -91,7 +99,12 @@ def _build_docx(content: dict, work_dir: Path, out_path: Path) -> Path:
     """调用 docx-js 脚本生成 docx。"""
     content_path = save_content(content, work_dir / "content.json")
     cmd = ["node", str(BUILD_DOCX_JS), str(content_path), str(out_path)]
-    proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    try:
+        proc = subprocess.run(
+            cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180
+        )
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("docx 生成超时（>180s）")
     if proc.returncode != 0:
         raise RuntimeError(f"docx 生成失败:\n{proc.stdout}\n{proc.stderr}")
     return out_path
@@ -200,7 +213,7 @@ def run(args: argparse.Namespace) -> int:
             print(f"[error] 缺少 {content_path}，请先生成讲解内容", file=sys.stderr)
             return 1
         content = normalize_content(json.loads(content_path.read_text(encoding="utf-8")), work_dir)
-        out_name = (f"讲解_{paper.title or paper_path.stem}"[:80].replace("/", "_")) + ".docx"
+        out_name = f"讲解_{_safe_filename(paper.title or paper_path.stem)}.docx"
         out_docx = work_dir / out_name
         out_docx = _build_docx(content, work_dir, out_docx)
         print(f"[done] docx 已生成: {out_docx}")
