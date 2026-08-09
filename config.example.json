@@ -1,0 +1,15 @@
+{
+  "_说明": "复制本文件为 config.json 并填入 API key（不提交 git）。也可用环境变量 DEEPSEEK_API_KEY / MOONSHOT_API_KEY / OPENAI_API_KEY 代替。",
+  "text": {
+    "provider": "deepseek",
+    "base_url": "https://api.deepseek.com",
+    "model": "deepseek-chat",
+    "api_key": ""
+  },
+  "vision": {
+    "provider": "kimi",
+    "base_url": "https://api.moonshot.cn/v1",
+    "model": "kimi-latest",
+    "api_key": ""
+  }
+}

@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Node
+node_modules/
+
+# 密钥与本地配置（config.json 含 API key，不提交）
+.env
+config.json
+
+# 输出与论文（用户私有数据）
+output/*
+!output/.gitkeep
+papers/*
+!papers/.gitkeep
+
+# 临时测试产物
+_conv_out/
+_test_*
+~$*
+
+# 系统
+Thumbs.db
+.DS_Store
