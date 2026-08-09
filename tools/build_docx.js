@@ -73,21 +73,33 @@ function segmentText(text) {
 
 /**
  * 生成一行文本的 TextRun 数组。
+ * - `$...$` 数学公式 → 私有区字符包裹的占位 run（后续由 Python 注入 OMML，WPS 原生渲染）
  * - `**...**` 标记加粗（奇数段加粗）
  * - 中文用 cnFont（正体），英文/数字用 Times New Roman 斜体
  */
+const MATH_MARK_S = "\uE000";
+const MATH_MARK_E = "\uE001";
+
 function makeRuns(text, cnFont, size, allBold = false) {
-  const parts = String(text).split("**");
   const runs = [];
-  parts.forEach((part, i) => {
+  const parts = String(text).split(/\$([^$]*)\$/); // 奇数下标为公式
+  parts.forEach((part, idx) => {
     if (!part) return;
-    const bold = i % 2 === 1;
-    for (const [kind, seg] of segmentText(part)) {
-      const opts = { size, font: { ascii: LATIN, eastAsia: cnFont, hAnsi: LATIN } };
-      if (kind === "latin") opts.italics = true; // 英文/数字一律斜体
-      if (bold || allBold) opts.bold = true;
-      runs.push(new TextRun({ text: seg, ...opts }));
+    if (idx % 2 === 1) {
+      runs.push(new TextRun({ text: MATH_MARK_S + part + MATH_MARK_E }));
+      return;
     }
+    const subs = part.split("**");
+    subs.forEach((seg, j) => {
+      if (!seg) return;
+      const bold = j % 2 === 1 || allBold;
+      for (const [kind, chunk] of segmentText(seg)) {
+        const opts = { size, font: { ascii: LATIN, eastAsia: cnFont, hAnsi: LATIN } };
+        if (kind === "latin") opts.italics = true; // 英文/数字一律斜体
+        if (bold) opts.bold = true;
+        runs.push(new TextRun({ text: chunk, ...opts }));
+      }
+    });
   });
   return runs;
 }

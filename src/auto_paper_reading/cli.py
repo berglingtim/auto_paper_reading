@@ -95,8 +95,38 @@ def _classify_figures(figures: list, vision_client: LLMClient, max_images: int =
     return infos
 
 
+def _inject_math(docx_path: Path) -> int:
+    """把 docx 中的 LaTeX 占位 run（\\uE000...\\uE001）替换为 OMML 公式。
+
+    公式由 WPS/Word 打开时原生渲染；全部在 python-docx 层完成，不调用任何 Office 软件。
+    """
+    import docx as pydocx
+
+    from .omml import MATH_MARK_E, MATH_MARK_S, latex_to_omml
+
+    d = pydocx.Document(str(docx_path))
+    count = 0
+    for para in d.paragraphs:
+        for run in list(para.runs):
+            text = run.text or ""
+            if not (text.startswith(MATH_MARK_S) and MATH_MARK_E in text):
+                continue
+            latex = text[len(MATH_MARK_S) : text.rfind(MATH_MARK_E)]
+            try:
+                omml = latex_to_omml(latex)
+            except Exception as e:
+                print(f"  [warn] 公式解析失败 {latex[:40]!r}: {e}")
+                continue
+            run._r.addprevious(omml)
+            run._r.getparent().remove(run._r)
+            count += 1
+    if count:
+        d.save(str(docx_path))
+    return count
+
+
 def _build_docx(content: dict, work_dir: Path, out_path: Path) -> Path:
-    """调用 docx-js 脚本生成 docx。"""
+    """调用 docx-js 脚本生成 docx，再注入 OMML 公式。"""
     content_path = save_content(content, work_dir / "content.json")
     cmd = ["node", str(BUILD_DOCX_JS), str(content_path), str(out_path)]
     try:
@@ -107,6 +137,9 @@ def _build_docx(content: dict, work_dir: Path, out_path: Path) -> Path:
         raise RuntimeError("docx 生成超时（>180s）")
     if proc.returncode != 0:
         raise RuntimeError(f"docx 生成失败:\n{proc.stdout}\n{proc.stderr}")
+    n_math = _inject_math(out_path)
+    if n_math:
+        print(f"  [math] 注入 {n_math} 个 OMML 公式（WPS 原生渲染）")
     return out_path
 
 

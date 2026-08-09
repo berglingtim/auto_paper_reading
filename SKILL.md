@@ -110,6 +110,7 @@ pix.save("output/xxx/figures/fig_XX_pN.png")
 - `width_in` / `height_in` 从 `paper.json` 拷贝；需要调整大小时改这两个值即可。
 - `fig_id` 必须与 `figures` 里的 `id` 对应。
 - 文本中用 `**术语**` 标记加粗（仅用于专业名词/需强调处，如 **IAPL**、**CLIP**）。
+- 文本中用 `$...$` 包裹 **LaTeX 公式**：生成 docx 时自动转为 OMML 公式对象，由 **WPS 打开时原生渲染**（非图片、非纯文本）。支持上下标、\frac、\sum/\prod、\sqrt、\left...\right、希腊字母、\mathbb、\log 等常用子集（见 `src/auto_paper_reading/omml.py`）。示例：`$P_i^{(j)} = \alpha^{(j)} \odot P_o^{(j-1)} + T^{(j)}$`。
 - `{"type":"heading","level":2|3,"text":"..."}` 可在部分内加二级/三级小标题。
 
 ### 生成 docx 的格式规范（自动套用，写作时无需关心）

@@ -4,6 +4,22 @@
 
 ---
 
+## v0.1.5（2026-08-10）公式改为 WPS 原生渲染：LaTeX → OMML
+
+**背景**：用户要求公式用 WPS 渲染（此前是 `α^(j)` 这类纯文本，WPS 不会渲染成公式）。
+
+**本次改动**
+- 新增 `src/auto_paper_reading/omml.py`：LaTeX → OMML（Office Math）转换器，支持上下标、\frac、\sum/\prod/\int、\sqrt、\left...\right、希腊字母、\mathbb、函数与常用符号
+- `tools/build_docx.js`：`$...$` 公式提取为占位 run
+- `cli.py`：docx 生成后把占位 run 替换为 OMML 元素（python-docx 层完成，不调用任何 Office 软件）
+- `output/iapl/IAPL/content.json`：30 处公式改为 `$...$` LaTeX（Eq 1/2/6、熵损失、形状符号等）
+- 新增 `tests/test_omml.py`（10 个用例）
+- `SKILL.md`：content.json 增加 `$...$` 公式语法说明
+
+**验证**：30 个 OMML 公式注入成功、占位清零、python-docx 树内 30 个 m:oMath 结构正确、格式审计 0 问题、78 段 4 图完整。测试共 22 个用例通过（含修复 `skip_ws` 空串死循环导致的 pytest 挂起；basetemp 配置移到 conftest）。
+
+---
+
 ## v0.1.4（2026-08-10）docx 格式规范：黑体/宋体 + Times New Roman 斜体 + 三级标题
 
 **背景**：用户明确生成 docx 的格式要求。
