@@ -94,7 +94,11 @@ function makeRuns(text, cnFont, size, allBold = false) {
       if (!seg) return;
       const bold = j % 2 === 1 || allBold;
       for (const [kind, chunk] of segmentText(seg)) {
-        const opts = { size, font: { ascii: LATIN, eastAsia: cnFont, hAnsi: LATIN } };
+        const opts = {
+          size,
+          color: "000000", // 全文档统一黑色（覆盖标题样式自带的主题蓝）
+          font: { ascii: LATIN, eastAsia: cnFont, hAnsi: LATIN },
+        };
         if (kind === "latin") opts.italics = true; // 英文/数字一律斜体
         if (bold) opts.bold = true;
         runs.push(new TextRun({ text: chunk, ...opts }));
@@ -248,6 +252,13 @@ function build(content, contentPath) {
           },
         },
       },
+      // 显式覆盖内置标题样式：去掉主题蓝，统一黑色（黑体由 run 层保证）
+      paragraphStyles: [
+        { id: "Heading1", name: "Heading 1", basedOn: "Normal", next: "Normal", quickFormat: true, run: { color: "000000" } },
+        { id: "Heading2", name: "Heading 2", basedOn: "Normal", next: "Normal", quickFormat: true, run: { color: "000000" } },
+        { id: "Heading3", name: "Heading 3", basedOn: "Normal", next: "Normal", quickFormat: true, run: { color: "000000" } },
+        { id: "Title", name: "Title", basedOn: "Normal", next: "Normal", quickFormat: true, run: { color: "000000" } },
+      ],
     },
     sections: [{ children }],
   });
