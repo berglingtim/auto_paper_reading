@@ -125,6 +125,7 @@ pix.save("output/xxx/figures/fig_XX_pN.png")
 | 图注/说明 | 宋体 | 10.5pt |
 
 - **英语字母和数字一律 Times New Roman 斜体**（中文正体不受影响，由排版脚本自动切分）
+- **全文档字体颜色统一为黑色**（包括标题、正文、公式、图注、封面；禁止出现主题蓝或其他颜色——docx-js 内置标题样式自带主题蓝，生成后必须校验标题颜色为纯黑 #000000）
 - 正文中的专业名词用 `**...**` 标记加粗
 
 ### 讲解写作规范（质量核心）
@@ -185,7 +186,7 @@ python run.py papers/xxx.pdf --stage docx --out output/xxx --verify
 - **绝不**调用 `wps.exe` 打开 GUI、绝不自动用 WPS 打开/处理输出文件。
 - 生成 docx 后由用户自己在 WPS 中打开查看（项目不做任何 WPS 文件关联操作）。
 
-用 Read 检查预览图时重点看：中文无乱码、图片完整不超版心、四部分结构清晰。
+用 Read 检查预览图时重点看：中文无乱码、图片完整不超版心、四部分结构清晰、**标题/正文/公式均为黑色**（不得出现蓝色等主题色）。
 发现问题 → 修改 content.json → 重新生成。
 
 ## Step 6 交付与记录
@@ -204,6 +205,7 @@ python run.py papers/xxx.pdf --stage docx --out output/xxx --verify
 | `.doc/.docx` 报"需要 --allow-wps" | 该格式必须经 WPS 无头转换才能解析；确认后显式加 `--allow-wps` 重跑 |
 | `.doc/.docx` 转换失败 | 确认 WPS 已安装；或设置环境变量 `WPS_CONVERT` 指向 `kwpsconvert.exe`（仅无头转换，不弹窗） |
 | 需要渲染预览图 | `python run.py ... --stage docx --verify`（显式开启，才调用 WPS 无头转换） |
+| 标题出现蓝色/主题色 | 内置 Heading 样式自带主题蓝；需在 build_docx.js 中给 run 显式 `color: 000000` 并覆盖标题样式（v0.1.8 已处理，勿回退） |
 | 安全软件误报 | 360 等对"办公软件自动化"可能报警（误报），是否放行由用户在安全软件界面自行决定 |
 | 扫描版 PDF（无文字层） | 提取不到图注/文本，向用户说明并询问是否需要 OCR |
 | 长论文（>50 页） | 讲解聚焦方法/变换过程，正文截断即可；必要时分段阅读再写 |
