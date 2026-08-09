@@ -241,7 +241,11 @@ function build(content, contentPath) {
     styles: {
       default: {
         document: {
-          run: { font: { ascii: LATIN, eastAsia: CN_BODY, hAnsi: LATIN }, size: S_BODY },
+          run: {
+            color: "000000", // 字体统一黑色（含公式继承）
+            font: { ascii: LATIN, eastAsia: CN_BODY, hAnsi: LATIN },
+            size: S_BODY,
+          },
         },
       },
     },

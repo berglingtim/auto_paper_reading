@@ -3,9 +3,12 @@ r"""LaTeX → OMML（Office Math Markup Language）转换器。
 把 content.json 文本中 `$...$` 包裹的 LaTeX 公式转换为 OMML 元素，
 嵌入 docx 后由 WPS/Word 原生渲染为公式（非图片、非纯文本）。
 
-支持子集：上下标（含组合）、\frac、\sum/\prod/\int（带上下限）、\sqrt、
-\left...\right 定界符、希腊字母、\mathbb/\mathbf、\hat/\bar/\vec、
-\log/\max 等函数、常用符号（\cdot \times \odot \in \to 等）、\text{}。
+要点：
+- OMML 没有 <m:group> 元素（WPS 会丢弃其内容），因此 `{...}` 组一律
+  "展开"为父容器（m:e / m:num / m:den / m:sub / m:sup / oMath）的直接子元素。
+- 支持子集：上下标（含组合）、\frac、\sum/\prod/\int（带上下限）、\sqrt、
+  \left...\right 定界符、希腊字母、\mathbb/\mathbf、\hat/\bar/\vec、
+  \log/\max 等函数、常用符号（\cdot \times \odot \in \to 等）、\text{}。
 """
 
 from __future__ import annotations
@@ -59,9 +62,6 @@ FUNCS = {
 ACCENTS = {"hat": "\u0302", "bar": "\u0304", "vec": "\u20D7",
            "dot": "\u0307", "ddot": "\u0308", "tilde": "\u0303"}
 
-DELIM = {"(": "(", ")": ")", "[": "[", "]": "]", "{": "{", "}": "}",
-         "|": "|", "\\|": "|", ".": ""}
-
 _CMD_RE = re.compile(r"[A-Za-z]+")
 
 
@@ -76,25 +76,37 @@ def _elem(tag: str, **attrs) -> etree._Element:
     return el
 
 
-def _run(text: str, bold: bool = False) -> etree._Element:
+def _run(text: str, sty: str | None = None) -> etree._Element:
+    """创建 m:r 文本 run。sty: p(plain)/b(bold)/i(italic)/bi。"""
     r = _elem("r")
-    if bold:
+    if sty:
         rpr = etree.SubElement(r, _M + "rPr")
-        sty = etree.SubElement(rpr, _M + "sty")
-        sty.set(_M + "val", "b")
+        s = etree.SubElement(rpr, _M + "sty")
+        s.set(_M + "val", sty)
     t = etree.SubElement(r, _M + "t")
     t.text = text
     t.set(_XML_SPACE, "preserve")
     return r
 
 
+def _fill(container: etree._Element, items: list) -> None:
+    for it in items:
+        container.append(it)
+
+
 class LatexParser:
-    """递归下降解析器：把 LaTeX 字符串解析为 OMML 元素树。"""
+    """递归下降解析器：把 LaTeX 解析为 OMML 元素。
+
+    解析结果以 list[etree._Element] 表示"一组兄弟元素"：
+    - `{...}` 组返回其中全部子元素（不创建 m:group 包装）
+    - 单个字符/命令返回单元素列表
+    - parse_item 负责把组整体包进上下标（m:e 可容纳多个子元素）
+    """
 
     def __init__(self, latex: str):
         self.s = latex
         self.i = 0
-        self.cur: etree._Element | None = None
+        self.cur: list = []  # 当前正在填充的兄弟元素列表
 
     # ---- 基础工具 ----
     def peek(self) -> str:
@@ -106,63 +118,64 @@ class LatexParser:
         return ch
 
     def skip_ws(self):
-        # 注意: 空串 in 任意字符串 恒为 True，必须先用 peek() 判空
+        # 空串 in 任意字符串恒为 True，必须先判空，否则死循环
         while self.peek() and self.peek() in " \t":
             self.i += 1
 
     # ---- 解析 ----
     def parse(self) -> etree._Element:
         root = _elem("oMath")
-        self.cur = root
-        self.parse_seq(None)
+        items = self.parse_seq(None)
+        _fill(root, items)
         return root
 
-    def parse_seq(self, stop: str | None):
+    def parse_seq(self, stop: str | None) -> list:
+        """解析到 stop 字符为止，返回这一段的兄弟元素列表。"""
+        saved = self.cur
+        self.cur = []
         while self.peek() and self.peek() != stop:
-            item = self.parse_item()
-            if item is not None:
-                self.cur.append(item)
+            self.cur.extend(self.parse_item())
+        out = self.cur
+        self.cur = saved
+        return out
 
-    def parse_group(self) -> etree._Element:
-        """解析一个操作数：{...}、单个字符、或命令（如 \frac、\alpha）。"""
+    def parse_group(self) -> list:
+        """解析一个操作数（返回元素列表）：{...}、单个字符、或命令。"""
         self.skip_ws()
         ch = self.peek()
         if not ch:
             raise LatexError(f"公式意外结束: …{self.s[max(0, self.i - 20):self.i]}…")
         if ch == "{":
             self.next()
-            g = _elem("group")
-            saved, self.cur = self.cur, g
-            self.parse_seq("}")
-            self.cur = saved
+            items = self.parse_seq("}")
             if self.peek() != "}":
                 raise LatexError(f"缺少右括号: …{self.s[max(0, self.i - 15):self.i + 15]}…")
             self.next()
-            return g
+            return items
         if ch == "\\":
             return self.parse_command()
         if ch == " ":
             self.next()
-            return None
-        return _run(self.next())
+            return []
+        return [_run(self.next())]
 
-    def parse_command(self) -> etree._Element:
+    def parse_command(self) -> list:
         self.next()  # 吃掉反斜杠
         m = _CMD_RE.match(self.s, self.i)
         if not m:
             cmd = self.next()  # 单字符命令，如 \{ \| \; \, \!
-            if cmd in DELIM:
-                return _run(cmd)
+            if cmd in ("{", "}", "|"):
+                return [_run(cmd)]
             if cmd in SYMBOLS:
-                return _run(SYMBOLS[cmd])
-            return _run("\\" + cmd)
+                return [_run(SYMBOLS[cmd])]
+            return [_run("\\" + cmd)]
         cmd = m.group(0)
         self.i = m.end()
 
         if cmd in GREEK:
-            return _run(GREEK[cmd])
+            return [_run(GREEK[cmd])]
         if cmd in SYMBOLS:
-            return _run(SYMBOLS[cmd])
+            return [_run(SYMBOLS[cmd])]
         if cmd in ACCENTS:
             base = self.parse_group()
             acc = _elem("acc")
@@ -170,45 +183,46 @@ class LatexParser:
             c = etree.SubElement(pr, _M + "chr")
             c.set(_M + "val", ACCENTS[cmd])
             e = etree.SubElement(acc, _M + "e")
-            e.append(base)
-            return acc
+            _fill(e, base)
+            return [acc]
         if cmd in NARY:
-            return self.parse_nary(NARY[cmd])
+            return [self.parse_nary(NARY[cmd])]
         if cmd == "frac":
             num = self.parse_group()
             den = self.parse_group()
             f = _elem("f")
             n = etree.SubElement(f, _M + "num")
-            n.append(num)
+            _fill(n, num)
             d = etree.SubElement(f, _M + "den")
-            d.append(den)
-            return f
+            _fill(d, den)
+            return [f]
         if cmd == "sqrt":
             rad = _elem("rad")
             pr = etree.SubElement(rad, _M + "radPr")
             if self.peek() == "[":
                 self.next()
-                deg = self.parse_seq_until("]")
+                deg = self.parse_seq("]")
                 self.next()
                 dg = etree.SubElement(rad, _M + "deg")
-                dg.append(deg)
+                _fill(dg, deg)
             else:
                 hide = etree.SubElement(pr, _M + "degHide")
                 hide.set(_M + "val", "1")
                 etree.SubElement(rad, _M + "deg")
             base = self.parse_group()
             e = etree.SubElement(rad, _M + "e")
-            e.append(base)
-            return rad
+            _fill(e, base)
+            return [rad]
         if cmd == "left":
-            return self.parse_delimiter()
+            return [self.parse_delimiter()]
         if cmd in ("mathbb", "mathbf", "mathrm", "operatorname", "mathit"):
             base = self.parse_group()
             if cmd in ("mathbb", "mathbf"):
-                for r in base.iter(_M + "r"):
-                    rpr = etree.SubElement(r, _M + "rPr")
-                    sty = etree.SubElement(rpr, _M + "sty")
-                    sty.set(_M + "val", "b")
+                for it in base:
+                    for r in it.iter(_M + "r"):
+                        rpr = etree.SubElement(r, _M + "rPr")
+                        sty = etree.SubElement(rpr, _M + "sty")
+                        sty.set(_M + "val", "b")
             return base
         if cmd == "text":
             if self.peek() == "{":
@@ -221,24 +235,17 @@ class LatexParser:
                     elif self.s[self.i] == "}":
                         depth -= 1
                     self.i += 1
-                return _run(self.s[start : self.i - 1])
+                return [_run(self.s[start : self.i - 1])]
             raise LatexError("\\text 需要 {…}")
         if cmd in FUNCS:
             arg = self.parse_group()
             func = _elem("func")
             fn = etree.SubElement(func, _M + "fName")
-            fn.append(_run(cmd, bold=True))
+            fn.append(_run(cmd, sty="p"))  # 函数名用正体（plain）
             e = etree.SubElement(func, _M + "e")
-            e.append(arg)
-            return func
+            _fill(e, arg)
+            return [func]
         raise LatexError(f"不支持的 LaTeX 命令: \\{cmd}")
-
-    def parse_seq_until(self, stop: str) -> etree._Element:
-        g = _elem("group")
-        saved, self.cur = self.cur, g
-        self.parse_seq(stop)
-        self.cur = saved
-        return g
 
     def parse_nary(self, chr_: str) -> etree._Element:
         nary = _elem("nary")
@@ -251,31 +258,18 @@ class LatexParser:
         sup = etree.SubElement(nary, _M + "sup")
         if self.peek() == "_":
             self.next()
-            sub.append(self.parse_group())
+            _fill(sub, self.parse_group())
         if self.peek() == "^":
             self.next()
-            sup.append(self.parse_group())
+            _fill(sup, self.parse_group())
         e = etree.SubElement(nary, _M + "e")
-        e.append(self.parse_group())
+        _fill(e, self.parse_group())
         return nary
 
     def parse_delimiter(self) -> etree._Element:
         r"""\left X ... \right Y → m:d 定界符。"""
         beg = self.parse_delim_char()
-        inner = _elem("group")
-        saved, self.cur = self.cur, inner
-        while True:
-            if not self.peek():
-                raise LatexError("\\left 缺少 \\right")
-            if self.peek() == "\\":
-                m2 = _CMD_RE.match(self.s, self.i + 1)
-                if m2 and m2.group(0) == "right":
-                    self.i = m2.end()
-                    break
-            item = self.parse_item()
-            if item is not None:
-                inner.append(item)
-        self.cur = saved
+        inner = self.parse_seq_until_right()
         end = self.parse_delim_char()
         d = _elem("d")
         if beg or end:
@@ -287,8 +281,22 @@ class LatexParser:
                 e = etree.SubElement(dpr, _M + "endChr")
                 e.set(_M + "val", end)
         e = etree.SubElement(d, _M + "e")
-        e.append(inner)
+        _fill(e, inner)
         return d
+
+    def parse_seq_until_right(self) -> list:
+        """解析 \left...\right 之间的内容，遇到 \right 停止并消费之。"""
+        out = []
+        while True:
+            if not self.peek():
+                raise LatexError("\\left 缺少 \\right")
+            if self.peek() == "\\":
+                m2 = _CMD_RE.match(self.s, self.i + 1)
+                if m2 and m2.group(0) == "right":
+                    self.i = m2.end()
+                    break
+            out.extend(self.parse_item())
+        return out
 
     def parse_delim_char(self) -> str:
         self.skip_ws()
@@ -301,12 +309,13 @@ class LatexParser:
             if m and m.group(0) == "right":
                 return ""
         ch = self.next()
-        return DELIM.get(ch, "")
+        return {"(": "(", ")": ")", "[": "[", "]": "]", "{": "{",
+                "}": "}", "|": "|", ".": ""}.get(ch, "")
 
-    def parse_item(self) -> etree._Element:
+    def parse_item(self) -> list:
         base = self.parse_group()
         sub = sup = None
-        while self.peek() in ("^", "_"):  # 注意: 不能用字符串成员判断，空串恒为真
+        while self.peek() in ("^", "_"):  # 空串 in 字符串恒为 True，须用元组
             op = self.next()
             if op == "^":
                 sup = self.parse_group()
@@ -317,14 +326,14 @@ class LatexParser:
         ss = _elem("sSubSup" if (sub is not None and sup is not None)
                    else ("sSup" if sup is not None else "sSub"))
         e = etree.SubElement(ss, _M + "e")
-        e.append(base)
+        _fill(e, base)
         if sub is not None:
             sb = etree.SubElement(ss, _M + "sub")
-            sb.append(sub)
+            _fill(sb, sub)
         if sup is not None:
             sp = etree.SubElement(ss, _M + "sup")
-            sp.append(sup)
-        return ss
+            _fill(sp, sup)
+        return [ss]
 
 
 def latex_to_omml(latex: str) -> etree._Element:
@@ -337,7 +346,3 @@ def latex_to_omml(latex: str) -> etree._Element:
 
 MATH_MARK = ("\uE000", "\uE001")  # 私有区字符，docx-js 生成的占位标记
 MATH_MARK_S, MATH_MARK_E = MATH_MARK
-
-
-def wrap_math_marker(latex: str) -> str:
-    return MATH_MARK[0] + latex + MATH_MARK[1]
