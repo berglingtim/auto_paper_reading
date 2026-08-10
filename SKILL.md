@@ -191,6 +191,13 @@ python run.py papers/xxx.pdf --stage docx --out output/xxx --verify
 
 ## Step 6 交付与记录
 
+0. **交付前必须自检 LaTeX 渲染**（硬性要求）：重新生成 docx 后，必须运行
+   `python run.py papers/xxx.pdf --stage docx --out output/xxx --verify` 渲染预览，
+   然后**逐页核验所有公式**：
+   - 跑 `python tools/verify_math.py` 自动化自检（每个公式的关键符号必须在渲染 PDF
+     文字层出现；`|`/`∑` 等矢量渲染符号回退检查 docx 的 OMML 结构）；
+   - 再对公式密集区域裁剪放大用视觉确认（上下标、分数、求和上下限、定界符是否完整）。
+   发现渲染问题 → 修 content.json 或 omml.py → 重新生成 → 再验证，直到全部通过才交付。
 1. **对话中讲解**：按四部分结构，用口语化但专业的方式把论文讲给用户听，
    说明配图内容与讲解的对应关系（验收标准：用户满意）。
 2. 把输出 docx 的路径告知用户（用户用 WPS 打开）。
