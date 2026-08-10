@@ -111,7 +111,8 @@ pix.save("output/xxx/figures/fig_XX_pN.png")
 - `fig_id` 必须与 `figures` 里的 `id` 对应。
 - 文本中用 `**术语**` 标记加粗（仅用于专业名词/需强调处，如 **IAPL**、**CLIP**）。
 - 文本中用 `$...$` 包裹 **LaTeX 公式**：生成 docx 时自动转为 OMML 公式对象，由 **WPS 打开时原生渲染**（非图片、非纯文本）。支持上下标、\frac、\sum/\prod、\sqrt、\left...\right、希腊字母、\mathbb、\log 等常用子集（见 `src/auto_paper_reading/omml.py`）。示例：`$P_i^{(j)} = \alpha^{(j)} \odot P_o^{(j-1)} + T^{(j)}$`。
-- `{"type":"heading","level":2|3,"text":"..."}` 可在部分内加二级/三级小标题。
+- `{"type":"heading","level":2|3,"text":"..."}` 可在部分内加二级/三级小标题。**标题编号自动生成**：一级=1、二级=1.1、三级=1.1.1，content.json 中**只写标题文字、不要写编号**（写编号会重复）。
+- **建议用足三级标题**（1 / 1.1 / 1.1.1）细分讲解，避免大段文字混在一起；方法部分按组件/模块拆二级、三级，变换过程按步骤拆三级。
 
 ### 生成 docx 的格式规范（自动套用，写作时无需关心）
 

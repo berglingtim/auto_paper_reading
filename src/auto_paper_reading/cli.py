@@ -126,16 +126,30 @@ def _inject_math(docx_path: Path) -> int:
 
 
 def _build_docx(content: dict, work_dir: Path, out_path: Path) -> Path:
-    """调用 docx-js 脚本生成 docx，再注入 OMML 公式。"""
+    """调用 docx-js 脚本生成 docx，再注入 OMML 公式。
+
+    目标文件被占用（如正被 WPS 打开）时自动换新文件名重试（讲解_xxx_v2.docx 等）。
+    """
     content_path = save_content(content, work_dir / "content.json")
-    cmd = ["node", str(BUILD_DOCX_JS), str(content_path), str(out_path)]
-    try:
-        proc = subprocess.run(
-            cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180
+    attempt = 0
+    while True:
+        target = out_path if attempt == 0 else out_path.with_name(
+            out_path.stem + f"_v{attempt + 1}" + out_path.suffix
         )
-    except subprocess.TimeoutExpired:
-        raise RuntimeError("docx 生成超时（>180s）")
-    if proc.returncode != 0:
+        cmd = ["node", str(BUILD_DOCX_JS), str(content_path), str(target)]
+        try:
+            proc = subprocess.run(
+                cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180
+            )
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("docx 生成超时（>180s）")
+        if proc.returncode == 0:
+            out_path = target
+            break
+        if "EBUSY" in (proc.stdout or "") + (proc.stderr or "") and attempt < 5:
+            attempt += 1
+            print(f"  [warn] 输出文件被占用（可能在 WPS 中打开），改用 {target.name}")
+            continue
         raise RuntimeError(f"docx 生成失败:\n{proc.stdout}\n{proc.stderr}")
     n_math = _inject_math(out_path)
     if n_math:

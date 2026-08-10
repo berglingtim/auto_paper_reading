@@ -116,6 +116,9 @@ function bodyParagraph(line, opts = {}) {
   });
 }
 
+// 三级标题自动编号状态（1 / 1.1 / 1.1.1）
+let headingCounters = [0, 0, 0];
+
 function headingParagraph(text, level) {
   const map = {
     1: { size: S_H1, heading: HeadingLevel.HEADING_1 },
@@ -123,10 +126,26 @@ function headingParagraph(text, level) {
     3: { size: S_H3, heading: HeadingLevel.HEADING_3 },
   };
   const cfg = map[level] || map[1];
+  // 自动编号
+  if (level === 1) {
+    headingCounters[0] += 1;
+    headingCounters[1] = 0;
+    headingCounters[2] = 0;
+  } else if (level === 2) {
+    headingCounters[1] += 1;
+    headingCounters[2] = 0;
+  } else if (level === 3) {
+    headingCounters[2] += 1;
+  }
+  let num;
+  if (level === 1) num = String(headingCounters[0]);
+  else if (level === 2) num = `${headingCounters[0]}.${headingCounters[1]}`;
+  else num = `${headingCounters[0]}.${headingCounters[1]}.${headingCounters[2]}`;
+  const fullText = `${num} ${text}`;
   return new Paragraph({
     heading: cfg.heading,
     spacing: { before: 360, after: 200 },
-    children: makeRuns(text, CN_HEAD, cfg.size),
+    children: makeRuns(fullText, CN_HEAD, cfg.size),
   });
 }
 
@@ -191,6 +210,7 @@ function captionParagraph(fig, note) {
 function build(content, contentPath) {
   const children = [];
   const figures = content.figures || [];
+  headingCounters = [0, 0, 0]; // 每次构建重置编号
 
   // ---- 封面信息 ----
   const title = content.title || content.paper_title || "";
