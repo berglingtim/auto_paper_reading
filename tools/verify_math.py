@@ -13,8 +13,10 @@ import fitz
 sys.stdout.reconfigure(encoding="utf-8")
 
 root = Path(__file__).resolve().parents[1]
-data = json.loads((root / "output/iapl/IAPL/content.json").read_text(encoding="utf-8"))
-pdfs = list((root / "output/iapl/IAPL/verify").glob("讲解_*.pdf"))
+# 目标论文输出目录：python tools/verify_math.py [output/论文名/论文名]（默认 IAPL）
+target = sys.argv[1] if len(sys.argv) > 1 else "output/iapl/IAPL"
+data = json.loads((root / target / "content.json").read_text(encoding="utf-8"))
+pdfs = list((root / target / "verify").glob("讲解_*.pdf"))
 if not pdfs:
     print("未找到渲染 PDF，请先运行 --verify")
     sys.exit(1)
@@ -56,7 +58,7 @@ print(f"共 {len(formulas)} 个公式，逐条检查……")
 
 # 回退检查：某些符号（| 定界符、∑ nary）WPS 渲染为矢量图形，不进 PDF 文字层，
 # 此时改为在 docx 的 OMML 结构里确认存在
-docx_files = list((root / "output/iapl/IAPL").glob("讲解_*.docx"))
+docx_files = list((root / target).glob("讲解_*.docx"))
 omml_xml = ""
 if docx_files:
     import zipfile

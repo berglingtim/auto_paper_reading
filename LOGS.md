@@ -4,6 +4,23 @@
 
 ---
 
+## v0.1.16（2026-08-10）第二篇论文交付：FakeXplain（ICLR 2026）
+
+**背景**：用户提供新论文练手——FakeXplain: AI-Generated Image Detection via Human-Aligned Grounded Reasoning（ICLR 2026，上海交大+蚂蚁）。
+
+**本次改动**
+- 新增 `papers/FakeXplain.pdf` + 完整讲解 docx（`output/fakexplain/FakeXplain/讲解_....docx`，11 页）：
+  - 五部分结构：1 基础知识（8 点：AIGI 任务/MLLM/幻觉/bbox 与 IoU/SFT/GRPO 奖励/CoT 结构化输出/人工标注数据集，每点含"为什么有效+例子"）
+  - 2 方法灵感 / 3 方法（数据集构建 + SFT + 三重奖励 + pGRPO，配 Figure 1/2/4 原图重裁）
+  - 4 变换过程（推理数据流 <think>/<tag>/<verdict> + 训练阶段学习变化，配 Figure 5）
+  - 5 创新点（实验结果直接用论文原表 Table 1-4 高清裁剪 + 逐表讲解，配 Figure 10）
+  - 23 个 OMML 公式（IoU、三重奖励、ω_G(t) 等）
+- 修复 `omml.py`：`\ `（转义空格）此前渲染成字面反斜杠，现正确渲染为空格
+- `tools/verify_math.py` 参数化：`python tools/verify_math.py [论文输出目录]`，支持任意论文自检
+- 验证：22 测试通过；IAPL 与 FakeXplain 双论文公式自检通过；视觉核验关键页
+
+---
+
 ## v0.1.15（2026-08-10）基础知识讲解升级：每个知识点补"为什么有效 + 举个例子"
 
 **背景**：用户要求基础知识讲解增加"为什么能达到这样的效果"的详细解释，太抽象的要举例子。

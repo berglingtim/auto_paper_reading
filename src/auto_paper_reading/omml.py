@@ -163,9 +163,11 @@ class LatexParser:
         self.next()  # 吃掉反斜杠
         m = _CMD_RE.match(self.s, self.i)
         if not m:
-            cmd = self.next()  # 单字符命令，如 \{ \| \; \, \!
+            cmd = self.next()  # 单字符命令，如 \{ \| \; \, \! \ （转义空格）
             if cmd in ("{", "}", "|"):
                 return [_run(cmd)]
+            if cmd == " ":
+                return [_run(" ")]  # \ 转义空格 → 普通空格
             if cmd in SYMBOLS:
                 return [_run(SYMBOLS[cmd])]
             return [_run("\\" + cmd)]
