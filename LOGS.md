@@ -4,6 +4,22 @@
 
 ---
 
+## v0.1.17（2026-08-14）第三篇论文交付：ConvNeXt（CVPR 2022）
+
+**背景**：用户要求用项目管线讲解 `papers/convNeXt.pdf`——A ConvNet for the 2020s（Meta AI/FAIR + UC Berkeley，CVPR 2022）。
+
+**本次改动**
+- 新增完整讲解 docx（`output/convnext/convNeXt/讲解_A ConvNet for the 2020s.docx`，14 页）：
+  - 五部分结构：1 基础知识（6 点：ConvNet 与归纳偏置/ResNet 残差/depthwise 卷积与空间通道分离/倒置瓶颈/BN vs LN/ViT 与 Swin，每点含"为什么有效+例子"）
+  - 2 方法灵感与发表期刊 / 3 方法（现代化路线图 5 组改造逐步讲解，配 Figure 2 重裁去串版正文、Figure 3、Figure 4）
+  - 4 变换过程（224×224×3 → 56×56×96 → … → 7×7×768 数据流逐 stage/block 内五步讲解；说明无注意力机制、以空间/通道分离混合作答）
+  - 5 创新点与借鉴经验（实验结果直接调用论文原表 Table 1/3/4 高清裁剪 300dpi + 逐表读法讲解）
+  - 14 个 OMML 公式（残差、LN、FLOPs 对比、block 结构等）
+- 修正解析器元数据：`paper.json` 标题误提取为 arXiv 页眉（导致 docx 文件名异常），手工补正为 `A ConvNet for the 2020s` / CVPR 2022 后重新生成
+- 验证：结构校验通过（129 段、6 图）；WPS 无头渲染 14 页预览逐页核验（无乱码、无主题蓝、图片完整、公式原生渲染）；`verify_math.py` 全部公式符号通过
+
+---
+
 ## v0.1.16（2026-08-10）第二篇论文交付：FakeXplain（ICLR 2026）
 
 **背景**：用户提供新论文练手——FakeXplain: AI-Generated Image Detection via Human-Aligned Grounded Reasoning（ICLR 2026，上海交大+蚂蚁）。
