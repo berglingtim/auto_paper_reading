@@ -25,7 +25,7 @@ description: >
   ↓ ③ 撰写讲解        output/<论文名>/content.json（五部分 + 图文结合）
   ↓ ④ 生成 docx       node tools/build_docx.js <content.json> <输出.docx>
   ↓ ⑤ 校验排版        渲染 PDF/图片检查
-  ↓ ⑥ 交付与记录      对话中讲解 + 更新 LOGS.md + git 提交（大更新给版本号）
+  ↓ ⑥ 交付            对话中讲解 + 告知 docx 路径（用户用 WPS 打开）
 ```
 
 ## Step 0 搜索并准备论文
@@ -227,7 +227,7 @@ python run.py papers/xxx.pdf --stage docx --out output/xxx --verify
 用读图工具检查预览图时重点看：中文无乱码、图片完整不超版心、五部分结构清晰、**标题/正文/公式均为黑色**（不得出现蓝色等主题色）。
 发现问题 → 修改 content.json → 重新生成。
 
-## Step 6 交付与记录
+## Step 6 交付
 
 0. **交付前必须自检 LaTeX 渲染**（硬性要求）：重新生成 docx 后，必须运行
    `python run.py papers/xxx.pdf --stage docx --out output/xxx --verify` 渲染预览，
@@ -239,9 +239,6 @@ python run.py papers/xxx.pdf --stage docx --out output/xxx --verify
 1. **对话中讲解**：按五部分结构，用口语化但专业的方式把论文讲给用户听，
    说明配图内容与讲解的对应关系（验收标准：用户满意）。
 2. 把输出 docx 的路径告知用户（用户用 WPS 打开）。
-3. 更新 `LOGS.md`（日期、版本号 vX.Y.Z、本次改动）。
-4. **大更新**（新增功能/结构变化）执行 `git add -A && git commit`，版本号记录在 LOGS.md。
-   小修补（文案、单处 bug）可只在 LOGS.md 追加记录。
 
 ## 常见问题
 

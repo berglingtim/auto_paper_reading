@@ -67,7 +67,7 @@ Agent 就会按 `SKILL.md` 工作流自动**搜索下载论文 → 解析裁剪�
   ↓ ③ 撰写讲解：写 output/xxx/content.json（五部分 + 图文结合 + LaTeX 公式）
   ↓ ④ 生成 docx：python run.py papers/xxx.pdf --stage docx --out output/xxx
   ↓ ⑤ 自检：--verify 渲染预览逐页核验 + python tools/verify_math.py
-  ↓ ⑥ 交付：对话中讲解 + 更新 LOGS.md + git 提交
+  ↓ ⑥ 交付：对话中讲解 + 告知 docx 路径
 ```
 
 ### 交付自检（硬性要求）
