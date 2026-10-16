@@ -17,6 +17,17 @@ Agent 就会按 `SKILL.md` 工作流自动**搜索下载论文 → 解析裁剪�
 
 > 前提：Agent 具备联网检索与读图能力；本机装有 Python 3.10+ 与 Node.js。
 
+## 效果演示
+
+以对「Attention Is All You Need」的一次完整阅读为例：
+
+| ① 一句话触发 | ② Agent 自动制作（看图 → 撰写 → 自检） | ③ WPS 打开成果 |
+|:---:|:---:|:---:|
+| ![对话触发](docs/images/demo_1_chat.png) | ![制作过程](docs/images/demo_2_process.png) | ![讲解 docx 成品](docs/images/demo_3_result.png) |
+
+用户只需说「我想要阅读下 Attention is all you need」，Agent 便自动完成搜索下载、
+解析裁剪、撰写图文讲解、渲染自检，最终交付可直接用 WPS 打开的讲解文档。
+
 ## 讲解内容结构（五部分，三级编号标题 1 / 1.1 / 1.1.1）
 
 1. **基础知识讲解** —— 前置知识拆成小点逐个讲（CLIP、ViT、注意力、Adapter/LoRA、
@@ -72,6 +83,7 @@ python tools/verify_math.py output/xxx/xxx                            # 公式�
 
 ```
 ├── SKILL.md / README.md        # 项目说明与 Agent 工作流
+├── docs/images/                # README 效果演示截图
 ├── run.py                      # CLI 入口（prep / docx 两阶段）
 ├── src/auto_paper_reading/     # 核心 Python 包（无 LLM API 依赖）
 │   ├── parser/                 #   解析层（pdf/docx/doc 统一为 PaperDocument）
