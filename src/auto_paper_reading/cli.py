@@ -1,17 +1,15 @@
-"""auto_paper_reading 命令行入口。
+"""auto_paper_reading 命令行入口（纯本地工具，不调用任何 LLM API）。
+
+本仓库由 AI Agent（Claude Code / Codex / Qwen Code / Kimi Code 等）按 SKILL.md
+工作流驱动：Agent 负责搜索下载论文、视觉选图与撰写 content.json，
+这里只负责机械的两步——解析裁剪、docx 排版与自检。
 
 用法示例：
-  # 阶段 1：解析 + 裁剪图片（SKILL.md 工作流使用）
+  # 阶段 1：解析 + 裁剪图片（.doc/.docx 输入需显式 --allow-wps）
   python run.py papers/xxx.pdf --stage prep --out output/xxx
 
-  # 阶段 2：视觉筛选 + LLM 生成讲解内容（需配置 API key）
-  python run.py papers/xxx.pdf --stage content --out output/xxx --vision-provider kimi
-
-  # 阶段 3：由 content.json 生成 docx
-  python run.py papers/xxx.pdf --stage docx --out output/xxx
-
-  # 全流程
-  python run.py papers/xxx.pdf --stage full --out output/xxx
+  # 阶段 2：由 Agent 撰写的 content.json 生成 docx（--verify 用 WPS 无头渲染预览）
+  python run.py papers/xxx.pdf --stage docx --out output/xxx [--verify]
 """
 
 from __future__ import annotations
@@ -40,59 +38,11 @@ def _safe_filename(name: str, max_len: int = 80) -> str:
     return (name[:max_len] or "paper")
 
 from .docx_content import normalize_content, save_content
-from .explain import generate_content
-from .llm import LLMClient
 from .models import PaperDocument
 from .parser import parse_paper
 
 ROOT = Path(__file__).resolve().parents[2]
 BUILD_DOCX_JS = ROOT / "tools" / "build_docx.js"
-
-
-def _classify_figures(figures: list, vision_client: LLMClient, max_images: int = 12) -> list[dict]:
-    """用视觉模型逐张判断图片类型与是否关键，返回补全描述后的 figure 信息。"""
-    prompt = (
-        "这是从一篇论文中裁剪出的图片。请以 JSON 返回三个字段：\n"
-        "kind: 图片类型，只能是 flowchart(流程图/架构图/示意图) / plot(实验图表) / "
-        "photo(照片/真实图像) / table(表格) / other 之一；\n"
-        "key: 布尔值，是否属于讲解'方法'必须配图的关键图（流程图、架构图、示意图通常为 true，"
-        "实验结果图、照片通常为 false）；\n"
-        "description: 一句话用中文描述图片内容（含图中可见的关键文字/标注，若有）。\n"
-        '示例输出: {"kind": "flowchart", "key": true, "description": "整体架构图，包含编码器-解码器两阶段"}'
-    )
-    infos = []
-    for f in figures[:max_images]:
-        if not f.image_path or not Path(f.image_path).exists():
-            continue
-        try:
-            raw = vision_client.chat_vision(prompt, [f.image_path], temperature=0.1)
-            raw = raw.strip()
-            start, end = raw.find("{"), raw.rfind("}")
-            info = json.loads(raw[start : end + 1]) if start != -1 else {}
-        except Exception as e:  # 单张失败不阻塞整体
-            info = {}
-            print(f"  [warn] 图 {f.id} 视觉分析失败: {e}")
-        info.setdefault("kind", "unknown")
-        info.setdefault("key", False)
-        info.setdefault("description", "")
-        f.kind = info["kind"]
-        f.selected = bool(info["key"])
-        f.description = info["description"]
-        infos.append(
-            {
-                "id": f.id,
-                "page": f.page,
-                "bbox": f.bbox,
-                "caption": f.caption,
-                "path": f.image_path,
-                "width_in": f.width_in,
-                "height_in": f.height_in,
-                "kind": f.kind,
-                "selected": f.selected,
-                "description": f.description,
-            }
-        )
-    return infos
 
 
 def _inject_math(docx_path: Path) -> int:
@@ -211,8 +161,8 @@ def run(args: argparse.Namespace) -> int:
     work_dir.mkdir(parents=True, exist_ok=True)
 
     # ---- 阶段 1：解析 + 裁剪 ----
-    if args.stage in ("prep", "content", "full"):
-        print(f"[1/3] 解析论文: {paper_path}")
+    if args.stage == "prep":
+        print(f"[1/2] 解析论文: {paper_path}")
         paper = parse_paper(paper_path, work_dir, allow_wps=getattr(args, "allow_wps", False))
         (work_dir / "paper.json").write_text(paper.to_json(), encoding="utf-8")
         _print_summary(paper)
@@ -225,53 +175,9 @@ def run(args: argparse.Namespace) -> int:
         print(f"[done] 解析完成，产物在 {work_dir}")
         return 0
 
-    # ---- 阶段 2：视觉筛选 + 讲解生成 ----
-    content = None
-    if args.stage in ("content", "full"):
-        print("[2/3] 视觉筛选关键图 + LLM 生成讲解")
-        vision = None
-        if args.vision_provider != "none":
-            try:
-                vision = LLMClient("vision")
-            except RuntimeError as e:
-                print(f"  [warn] {e}")
-        if vision is not None:
-            figures_info = _classify_figures(paper.figures, vision)
-        else:
-            figures_info = [
-                {
-                    "id": f.id, "page": f.page, "caption": f.caption, "path": f.image_path,
-                    "width_in": f.width_in, "height_in": f.height_in,
-                    "kind": f.kind, "selected": f.selected, "description": f.description,
-                }
-                for f in paper.figures
-            ]
-        if args.text_provider != "none":
-            try:
-                llm = LLMClient("text")
-            except RuntimeError as e:
-                print(f"[error] {e}", file=sys.stderr)
-                return 1
-            content = generate_content(paper, figures_info, llm, max_chars=args.max_chars)
-            content.setdefault("figures", figures_info)
-            content["meta"] = {
-                "journal": paper.journal,
-                "year": paper.year,
-                "authors": paper.authors,
-                "source": str(paper_path),
-            }
-            content = normalize_content(content, work_dir)
-            save_content(content, work_dir / "content.json")
-            print(f"[done] 讲解内容已生成: {work_dir / 'content.json'}")
-        else:
-            print("[warn] 未配置文本模型（--text-provider none），跳过讲解生成。请由 agent 手写 content.json。")
-
-    if args.stage == "content":
-        return 0
-
-    # ---- 阶段 3：生成 docx ----
-    if args.stage in ("docx", "full"):
-        print("[3/3] 生成 docx")
+    # ---- 阶段 2：生成 docx ----
+    if args.stage == "docx":
+        print("[2/2] 生成 docx")
         content_path = work_dir / "content.json"
         if not content_path.exists():
             print(f"[error] 缺少 {content_path}，请先生成讲解内容", file=sys.stderr)
@@ -309,13 +215,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", default="output", help="输出目录（默认 output/）")
     parser.add_argument(
         "--stage",
-        choices=["prep", "content", "docx", "full"],
-        default="full",
-        help="执行到哪个阶段：prep=解析裁剪 / content=+生成讲解 / docx=+排版 / full=全流程",
+        choices=["prep", "docx"],
+        default="prep",
+        help="执行哪个阶段：prep=解析裁剪 / docx=由 content.json 生成 docx 并自检",
     )
-    parser.add_argument("--text-provider", choices=["deepseek", "kimi", "openai", "none"], default="none")
-    parser.add_argument("--vision-provider", choices=["kimi", "openai", "none"], default="none")
-    parser.add_argument("--max-chars", type=int, default=80_000, help="送入 LLM 的正文最大字符数")
     parser.add_argument(
         "--verify",
         action="store_true",

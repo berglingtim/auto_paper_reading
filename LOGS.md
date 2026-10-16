@@ -4,6 +4,35 @@
 
 ---
 
+## v0.2.0（2026-10-16）转型为纯 Agent 工具包（去 LLM API）+ 仓库迁移子目录
+
+**背景**：用户定调项目形态——不调用任何 LLM API，而是作为工具/skill 放进
+Claude Code / Codex / Qwen Code / Kimi Code 等工作区，由带视觉能力的 Agent
+阅读项目后自主完成「搜索论文 → 下载 → 读图选图 → 撰写讲解 → 制作 docx」。
+同时要求把项目迁移到 `auto_paper_reading\auto_paper_reading` 以便上传 GitHub。
+
+**本次改动**
+- 删除 LLM API 相关代码与配置：`src/auto_paper_reading/llm.py`、
+  `explain.py`、`config.example.json`；`requirements.txt` 移除 openai/pypdf/pdfplumber，
+  补 lxml 显式声明；README 增加「不需要任何 API key」说明
+- `cli.py`：只保留 `prep`（解析裁剪）与 `docx`（由 content.json 排版+自检）两阶段，
+  移除 `--text-provider` / `--vision-provider` / `--max-chars` 与 `content`/`full` 阶段、
+  `_classify_figures` 视觉分类（改由 Agent 亲自看图）
+- `SKILL.md`：定位为 Agent 驱动工作流——新增 **Step 0 搜索并准备论文**
+  （本地文件 or 仅给题目时联网检索 CVF/arXiv/Semantic Scholar 下载 + 文字层验证）；
+  Step 2 视觉分析改为「用 Agent 自身读图能力」；补充双栏版式人工框选重裁经验、
+  content.json 反斜杠转义 FAQ；执行总览与 FAQ 更新为五部分结构
+- `README.md`：整体重写为工具包使用说明（放进 Agent 工作区 → 说一句「阅读 XXX 论文」
+  → 自动搜索下载并产出讲解 docx）
+- `AGENTS.md`：新增「架构定调（v0.2.0）」小节；`__version__` 升为 0.2.0
+- **仓库迁移**：全部内容（含 .git、node_modules、papers、output）从
+  `Desktop\auto_paper_reading\` 移入 `Desktop\auto_paper_reading\auto_paper_reading\`；
+  output 因文件占用改为「复制+校验+删除原目录」完成迁移，原目录已清空
+- 验证：22 测试通过（迁移前后各一次）；`run.py --help` 仅 prep/docx 两阶段；
+  OpenSDI docx 烟测重生成正常（170 段、48 公式、10 图）
+
+---
+
 ## v0.1.20（2026-10-16）docx 格式规范升级：TNR 正体 + 公式变量斜体 + 表格小五 + 参考文献六号
 
 **背景**：用户明确新的排版要求：英语字母和数字一律 Times New Roman（正体），

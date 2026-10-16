@@ -11,3 +11,13 @@
     2. LOGS.md记录你每次的更新，并且记得大更新本地git上传每次修改记得给予版本号，记录在LOGS里面
 
 验收标准：将项目里的论文讲给我听，我觉得满意为止
+
+---
+
+## 架构定调（2026-10-16，v0.2.0）
+
+- 本项目定位为 **AI Agent 的论文阅读工具包（skill）**：放在 Claude Code / Codex /
+  Qwen Code / Kimi Code 等工作区中使用，由带视觉能力的 Agent 按 `SKILL.md` 执行。
+- **不调用任何 LLM API、不需要 API key**：搜索下载论文、视觉选图、撰写 content.json
+  均由 Agent 亲自完成；`run.py` 只保留 `prep`（解析裁剪）与 `docx`（排版自检）两阶段。
+- 用户只给论文题目时，Agent 负责联网检索并下载开放获取 PDF 到 `papers/`（需验证文字层）。
