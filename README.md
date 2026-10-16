@@ -71,7 +71,7 @@ python tools/verify_math.py output/xxx/xxx                            # 公式�
 ## 目录结构
 
 ```
-├── AGENTS.md / SKILL.md / README.md  # 项目说明与 Agent 工作流
+├── SKILL.md / README.md        # 项目说明与 Agent 工作流
 ├── run.py                      # CLI 入口（prep / docx 两阶段）
 ├── src/auto_paper_reading/     # 核心 Python 包（无 LLM API 依赖）
 │   ├── parser/                 #   解析层（pdf/docx/doc 统一为 PaperDocument）
@@ -86,7 +86,6 @@ python tools/verify_math.py output/xxx/xxx                            # 公式�
 ├── output/                     # 讲解输出目录（每篇论文一个子目录）
 ├── tests/                      # 22 个单元测试（python -m pytest tests/ -q）
 ├── requirements.txt / package.json / pytest.ini
-└── LOGS.md                     # 更新日志（版本号）
 ```
 
 ## 依赖
@@ -96,7 +95,3 @@ python tools/verify_math.py output/xxx/xxx                            # 公式�
 - WPS Office：仅 `.doc/.docx → PDF` 输入转换与 `--verify` 预览渲染
   （无头 `kwpsconvert word2pdf`，需显式 `--allow-wps` / `--verify` 才调用）
 - **不需要**：任何 LLM API key、OpenAI SDK、联网模型服务
-
-## 版本记录
-
-见 `LOGS.md`。
