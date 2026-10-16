@@ -20,7 +20,8 @@ def load_content(path: str | Path) -> dict:
 def normalize_content(content: dict, base_dir: str | Path | None = None) -> dict:
     """补齐字段：figures 中缺省的尺寸/路径，sections 中缺省结构。
 
-    base_dir 用于把 figures[].path 相对路径解析为绝对路径。
+    base_dir 用于把 figures[].path 处理为相对路径（位于 base_dir 内时转相对、
+    保持相对路径原样），保证 content.json 可随仓库迁移、跨机器使用。
     """
     base = Path(base_dir).resolve() if base_dir else None
     content.setdefault("figures", [])
@@ -30,7 +31,11 @@ def normalize_content(content: dict, base_dir: str | Path | None = None) -> dict
         f.setdefault("height_in", 4.0)
         if base and f.get("path"):
             p = Path(f["path"])
-            f["path"] = str((base / p).resolve() if not p.is_absolute() else p.resolve())
+            if p.is_absolute():
+                try:  # 位于工作目录内 → 存相对路径（可移植）
+                    f["path"] = str(p.resolve().relative_to(base)).replace("\\", "/")
+                except ValueError:  # 工作目录外 → 保留绝对路径
+                    pass
     content.setdefault("sections", [])
     for sec in content["sections"]:
         sec.setdefault("title", "")

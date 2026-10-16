@@ -102,7 +102,8 @@ pix.save("output/xxx/figures/fig_XX_pN.png")
 
 ## Step 3 撰写讲解内容 content.json
 
-在 `output/xxx/content.json` 写入结构化讲解（**路径必须可被 docx 脚本读取，建议绝对路径**）。
+在 `output/xxx/content.json` 写入结构化讲解（图片 `path` 建议用相对路径，如
+`figures/fig_02_p2.png`，相对 content.json 所在目录解析，仓库迁移/换机器不失效）。
 
 ### content.json 格式
 
