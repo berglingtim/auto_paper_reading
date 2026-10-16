@@ -61,7 +61,8 @@ python run.py papers/xxx.pdf --stage prep --out output/xxx
 python run.py papers/xxx.docx --stage prep --out output/xxx --allow-wps
 ```
 
-⚠️ **修改范围红线**：本工作流只允许修改/读写 `C:\Users\Tim\Desktop\auto_paper_reading` 工作区内的内容；
+⚠️ **修改范围红线**：本工作流只允许修改/读写本仓库目录（即 Agent 当前打开的工作区）
+内的内容；
 不触碰 360、注册表、系统设置、工作区外任何文件。360 等安全软件对"办公软件自动化"可能误报，
 是否放行由用户自行在安全软件界面决定，本工作流不代为操作。
 

@@ -17,7 +17,7 @@ def sample_pdf(tmp_path_factory):
 
     # 标题/作者/摘要
     page.insert_text((72, 72), "Attention Is All You Need Revisited", fontsize=16)
-    page.insert_text((72, 92), "Tim Author", fontsize=10)
+    page.insert_text((72, 92), "Test Author", fontsize=10)
     page.insert_text((72, 112), "Abstract: A novel method for sequence modeling.", fontsize=9)
 
     # 光栅图：画一个矩形区域并嵌入一张小图（模拟 Figure 1）
