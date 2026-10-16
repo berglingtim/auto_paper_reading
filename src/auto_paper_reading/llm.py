@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import sys
 from pathlib import Path
 
 from openai import OpenAI
@@ -57,7 +58,9 @@ def _load_config() -> dict:
     if CONFIG_PATH.exists():
         try:
             return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
-        except Exception:
+        except json.JSONDecodeError as e:
+            # 配置损坏不应静默回退为空配置（掩盖注入的非法配置）
+            print(f"警告: config.json 解析失败（{e}），按空配置处理", file=sys.stderr)
             return {}
     return {}
 
@@ -72,7 +75,12 @@ def _resolve(section: str) -> dict:
     )
     model = cfg.get("model") or os.environ.get("LLM_MODEL") or _MODELS.get(provider, DEFAULTS[section]["model"])
     key_env = _KEY_ENVS.get(provider, DEFAULTS[section]["api_key_env"])
-    api_key = cfg.get("api_key") or os.environ.get(key_env, "")
+    # 安全: 环境变量优先; config.json 中的明文 api_key 仅作回退并告警（明文落盘有泄露风险）
+    api_key = os.environ.get(key_env, "")
+    if not api_key and cfg.get("api_key"):
+        print(f"警告: config.json 中的明文 api_key 仅作回退使用，建议改用环境变量 {key_env}",
+              file=sys.stderr)
+        api_key = cfg["api_key"]
     return {"provider": provider, "base_url": base_url, "model": model, "api_key": api_key}
 
 
@@ -83,8 +91,9 @@ class LLMClient:
         cfg = _resolve(section)
         if not cfg["api_key"]:
             raise RuntimeError(
-                f"未配置 {cfg['provider']} 的 API key。请在 config.json 填入，"
-                f"或设置环境变量 {_KEY_ENVS.get(cfg['provider'], '')}。"
+                f"未配置 {cfg['provider']} 的 API key。请设置环境变量 "
+                f"{_KEY_ENVS.get(cfg['provider'], '')}（推荐），或在 config.json 的 "
+                f"'{section}' 节填入 api_key（明文落盘有泄露风险，不建议）。"
             )
         self.model = cfg["model"]
         self._client = OpenAI(base_url=cfg["base_url"], api_key=cfg["api_key"], timeout=timeout)
@@ -104,11 +113,21 @@ class LLMClient:
         resp = self._client.chat.completions.create(**kwargs)
         return (resp.choices[0].message.content or "").strip()
 
+    MAX_IMAGE_BYTES = 20 * 1024 * 1024   # 单张图片上限 20MB（base64 膨胀约 33%）
+    IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
+
     def chat_vision(self, user_text: str, image_paths: list[str | Path], temperature: float = 0.2) -> str:
         """发送文本 + 多张图片，返回模型回答。"""
         content: list[dict] = [{"type": "text", "text": user_text}]
         for p in image_paths:
             p = Path(p)
+            if p.suffix.lower() not in self.IMAGE_EXTS:
+                raise ValueError(f"不支持的图片类型 {p.suffix}（允许 {sorted(self.IMAGE_EXTS)}）: {p}")
+            if not p.is_file():
+                raise FileNotFoundError(f"图片不存在: {p}")
+            size = p.stat().st_size
+            if size > self.MAX_IMAGE_BYTES:
+                raise ValueError(f"图片过大 {size / 1e6:.1f}MB > 20MB 上限: {p}")
             ext = p.suffix.lstrip(".").lower()
             mime = "image/png" if ext == "png" else "image/jpeg"
             b64 = base64.b64encode(p.read_bytes()).decode()

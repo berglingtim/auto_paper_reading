@@ -1,11 +1,7 @@
 """WPS 转换测试（.docx → PDF）。WPS 不可用时自动跳过。"""
 
-import sys
-from pathlib import Path
 
 import pytest
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from auto_paper_reading.parser import parse_paper  # noqa: E402
 from auto_paper_reading.parser.convert import doc_to_pdf, find_wps_convert  # noqa: E402

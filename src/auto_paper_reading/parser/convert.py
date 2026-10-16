@@ -13,12 +13,19 @@ from pathlib import Path
 # 环境变量可覆盖自动查找结果
 _ENV_KEY = "WPS_CONVERT"
 
+# 查找结果缓存：WPS 安装位置在进程生命周期内不变，避免每次转换重复扫盘
+_WPS_CACHE: Path | None | bool = None   # None=未查找, False=未找到, Path=已找到
+
 
 def find_wps_convert() -> Path | None:
-    """在常见安装位置查找 kwpsconvert.exe（wpscli 入口）。"""
+    """在常见安装位置查找 kwpsconvert.exe（wpscli 入口），结果进程内缓存。"""
+    global _WPS_CACHE
+    if _WPS_CACHE is not None:
+        return _WPS_CACHE or None
     env = os.environ.get(_ENV_KEY)
     if env and Path(env).exists():
-        return Path(env)
+        _WPS_CACHE = Path(env)
+        return _WPS_CACHE
 
     home = Path.home()
     roots = [
@@ -28,12 +35,7 @@ def find_wps_convert() -> Path | None:
     ]
     exe_names = ("kwpsconvert.exe", "wpscli.exe")
     for root in roots:
-        if root.name == "office6":
-            for name in exe_names:
-                p = root / name
-                if p.exists():
-                    return p
-        elif root.exists():
+        if root.exists():
             # WPS Office/<version>/office6/... 或 Kingsoft/office6/...
             for cand in (root, *root.iterdir()):
                 if not cand.is_dir():
@@ -42,7 +44,9 @@ def find_wps_convert() -> Path | None:
                 for name in exe_names:
                     p = od / name
                     if p.exists():
+                        _WPS_CACHE = p
                         return p
+    _WPS_CACHE = False
     return None
 
 

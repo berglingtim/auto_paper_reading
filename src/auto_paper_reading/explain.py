@@ -99,10 +99,15 @@ def generate_content(
 
 
 def _parse_json(raw: str) -> dict:
-    """容忍 LLM 输出中的代码围栏/前后杂质。"""
+    """容忍 LLM 输出中的代码围栏/前后杂质；限制体积并校验顶层结构。"""
+    if len(raw) > 2 * 1024 * 1024:
+        raise ValueError(f"LLM 返回过大（{len(raw) // 1024}KB > 2MB 上限），拒绝解析")
     text = raw.strip()
     text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.MULTILINE)
     start, end = text.find("{"), text.rfind("}")
     if start == -1 or end == -1:
         raise ValueError(f"LLM 未返回 JSON: {text[:300]}")
-    return json.loads(text[start : end + 1])
+    data = json.loads(text[start : end + 1])
+    if not isinstance(data, dict) or "sections" not in data:
+        raise ValueError("LLM 返回结构非法: 顶层必须是含 'sections' 的对象")
+    return data

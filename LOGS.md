@@ -4,6 +4,29 @@
 
 ---
 
+## v0.1.18（2026-10-16）安全加固与代码质量整理
+
+**背景**：v0.1.17 之后一批代码审查改进在工作区未提交、未记录，本次补齐记录并同步版本号。
+
+**本次改动**
+- `llm.py`：API key 解析改为**环境变量优先**（config.json 明文 key 仅作回退并告警，
+  提示泄露风险）；`chat_vision` 增加图片类型白名单（.png/.jpg/.jpeg/.webp）、
+  存在性与大小校验（单张 20MB 上限）
+- `figures.py`：`extract_figures` 增加输入校验（非 PDF / 文件不存在直接报错），
+  输出目录与 PDF 路径统一 resolve
+- `parser/convert.py`：`find_wps_convert` 查找结果**进程内缓存**（避免每次转换重复扫盘），
+  清理冗余的 office6 直接判断分支（循环已覆盖）
+- `explain.py`：LLM 返回体积上限 2MB（防异常大响应占内存），并校验顶层必须含 `sections`
+- `tools/verify_math.py`：目标目录越界防护（解析后必须在项目目录内），
+  公式关键符号检查表 KEY 字典重构为 if 链（检查语义等价）
+- 测试：`pytest.ini` 增加 `pythonpath = src`，删除 conftest 与各测试文件里的
+  `sys.path.insert` hack（统一由 pytest 提供 src 包导入路径）
+- `src/auto_paper_reading/__init__.py`：`__version__` 从 0.1.0 同步为 0.1.18
+
+**验证**：22 个测试通过；`git add -A` 后全量提交。
+
+---
+
 ## v0.1.17（2026-08-14）第三篇论文交付：ConvNeXt（CVPR 2022）
 
 **背景**：用户要求用项目管线讲解 `papers/convNeXt.pdf`——A ConvNet for the 2020s（Meta AI/FAIR + UC Berkeley，CVPR 2022）。

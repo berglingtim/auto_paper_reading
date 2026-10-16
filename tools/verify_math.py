@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """交付前 LaTeX 渲染自检：每个公式的关键符号必须在 WPS 渲染的 PDF 文字层中出现。
 
-用法: python tools/_verify_math.py
+用法: python tools/verify_math.py [output/论文名/论文名]
 """
 import json
 import re
@@ -15,8 +15,11 @@ sys.stdout.reconfigure(encoding="utf-8")
 root = Path(__file__).resolve().parents[1]
 # 目标论文输出目录：python tools/verify_math.py [output/论文名/论文名]（默认 IAPL）
 target = sys.argv[1] if len(sys.argv) > 1 else "output/iapl/IAPL"
-data = json.loads((root / target / "content.json").read_text(encoding="utf-8"))
-pdfs = list((root / target / "verify").glob("讲解_*.pdf"))
+target_dir = (root / target).resolve()
+if not target_dir.is_relative_to(root):
+    raise SystemExit(f"拒绝越界路径（必须在项目目录内）: {target}")
+data = json.loads((target_dir / "content.json").read_text(encoding="utf-8"))
+pdfs = list((target_dir / "verify").glob("讲解_*.pdf"))
 if not pdfs:
     print("未找到渲染 PDF，请先运行 --verify")
     sys.exit(1)
@@ -24,21 +27,7 @@ doc = fitz.open(pdfs[0])
 pages_text = [p.get_text("text") for p in doc]
 all_text = "\n".join(pages_text)
 
-# 每个公式的"关键符号"（渲染后必须在 PDF 文字层出现）
-KEY = {
-    "\\hat": "D",          # \hat{D} 至少 D 出现
-    "\\mathbb{R}": "R",
-    "\\in": "∈",
-    "\\odot": "⊙",
-    "\\times": "×",
-    "\\sigma": "σ",
-    "\\sum": "∑",
-    "\\frac": "m",          # \frac 的字母出现（弱检查）
-    "\\alpha": "α",
-    "\\to": "→",
-    "\\left|": "|",
-    "_{": "sub",            # 占位，下面特殊处理
-}
+# 每个公式的"关键符号"映射（渲染后必须在 PDF 文字层出现）在下方 if 链中维护
 formulas = []
 
 

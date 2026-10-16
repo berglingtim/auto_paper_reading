@@ -1,9 +1,5 @@
 """figures.py 纯函数单元测试。"""
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from auto_paper_reading.figures import (  # noqa: E402
     CAPTION_RE,

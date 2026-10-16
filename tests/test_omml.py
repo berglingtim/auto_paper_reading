@@ -1,11 +1,7 @@
 """omml.py（LaTeX→OMML）单元测试。"""
 
-import sys
-from pathlib import Path
 
 from lxml import etree
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from auto_paper_reading.omml import LatexError, latex_to_omml  # noqa: E402
 

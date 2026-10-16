@@ -1,8 +1,6 @@
-# 让测试能找到 src 下的包
-import sys
+# 测试临时文件收进工作区 .pytest_tmp，不写系统临时目录
+# (src 包导入路径由 pytest.ini 的 pythonpath=src 提供)
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 
 def pytest_configure(config):

@@ -241,7 +241,12 @@ def extract_figures(
     Returns:
         list[FigureRef]：含 id/page/bbox/caption/image_path/width_in/height_in。
     """
-    out_dir = Path(out_dir)
+    out_dir = Path(out_dir).resolve()
+    pdf_path = Path(pdf_path).resolve()
+    if pdf_path.suffix.lower() != ".pdf":
+        raise ValueError(f"输入必须是 PDF 文件: {pdf_path}")
+    if not pdf_path.is_file():
+        raise FileNotFoundError(f"PDF 不存在: {pdf_path}")
     out_dir.mkdir(parents=True, exist_ok=True)
     doc = fitz.open(pdf_path)
     full_text = "\n".join(page.get_text("text") for page in doc)
