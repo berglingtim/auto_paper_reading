@@ -83,6 +83,11 @@ def _run(text: str, sty: str | None = None) -> etree._Element:
         rpr = etree.SubElement(r, _M + "rPr")
         s = etree.SubElement(rpr, _M + "sty")
         s.set(_M + "val", sty)
+    # 西文/数字统一 Times New Roman；公式变量斜体由 OMML 默认数学样式保留
+    wrpr = etree.SubElement(r, _W + "rPr")
+    rfonts = etree.SubElement(wrpr, _W + "rFonts")
+    rfonts.set(_W + "ascii", "Times New Roman")
+    rfonts.set(_W + "hAnsi", "Times New Roman")
     t = etree.SubElement(r, _M + "t")
     t.text = text
     t.set(_XML_SPACE, "preserve")

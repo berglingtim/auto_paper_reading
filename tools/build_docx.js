@@ -4,9 +4,11 @@
  * 用法: node tools/build_docx.js <content.json> <out.docx>
  *
  * 格式规范（用户要求）：
- *   - 英语字母和数字：一律 Times New Roman 斜体（中文不受影响）
+ *   - 英语字母和数字：一律 Times New Roman 正体（中文不受影响；仅公式变量斜体，
+ *     斜体由 OMML 数学样式承担，其他情况不做改变）
  *   - 一级标题：黑体 三号(16pt)；二级标题：黑体 四号(14pt)；三级标题：黑体 小四(12pt)
  *   - 正文：宋体 小四(12pt)；专业名词/需标注处用 **加粗**（content.json 文本内用 ** 标记）
+ *   - 表格中的文字：小五(9pt)；参考文献：六号(7.5pt，整节匹配"参考文献/References"生效)
  *
  * content.json 结构见 src/auto_paper_reading/docx_content.py 的注释，另支持：
  *   - blocks 中 {"type":"heading","level":2|3,"text":"..."} 输出二级/三级标题
@@ -39,8 +41,10 @@ const S_BODY = 24; // 小四 12pt
 const S_H1 = 32; // 三号 16pt
 const S_H2 = 28; // 四号 14pt
 const S_H3 = 24; // 小四 12pt
-const S_META = 21; // 元信息 10.5pt
+const S_META = 21; // 元信息/图注 10.5pt
 const S_TITLE = 36; // 封面标题 18pt
+const S_TABLE = 18; // 表格中的文字 小五 9pt
+const S_REFS = 15; // 参考文献 六号 7.5pt
 
 const CJK_RE = /[\u4E00-\u9FFF\u3000-\u303F\uFF00-\uFFEF]/; // 汉字 + 中文标点 + 全角字符
 const LATIN_RE = /[A-Za-z0-9]/;
@@ -48,7 +52,7 @@ const LATIN_RE = /[A-Za-z0-9]/;
 /**
  * 把文本按字符类别切成 [kind, text] 段：
  *   "cjk"   —— 中文/中文标点（用中文正体字体，不斜体）
- *   "latin" —— 英文字母与数字（Times New Roman 斜体）
+ *   "latin" —— 英文字母与数字（Times New Roman 正体）
  *   "other" —— 空格、ASCII 标点、数学符号等（Times New Roman 正体）
  */
 function segmentText(text) {
@@ -75,7 +79,7 @@ function segmentText(text) {
  * 生成一行文本的 TextRun 数组。
  * - `$...$` 数学公式 → 私有区字符包裹的占位 run（后续由 Python 注入 OMML，WPS 原生渲染）
  * - `**...**` 标记加粗（奇数段加粗）
- * - 中文用 cnFont（正体），英文/数字用 Times New Roman 斜体
+ * - 中文用 cnFont（正体），英文/数字用 Times New Roman 正体（仅公式变量斜体）
  */
 const MATH_MARK_S = "\uE000";
 const MATH_MARK_E = "\uE001";
@@ -99,7 +103,7 @@ function makeRuns(text, cnFont, size, allBold = false) {
           color: "000000", // 全文档统一黑色（覆盖标题样式自带的主题蓝）
           font: { ascii: LATIN, eastAsia: cnFont, hAnsi: LATIN },
         };
-        if (kind === "latin") opts.italics = true; // 英文/数字一律斜体
+        // 西文/数字一律 Times New Roman 正体（仅公式变量斜体，由 OMML 数学样式承担）
         if (bold) opts.bold = true;
         runs.push(new TextRun({ text: chunk, ...opts }));
       }
@@ -240,6 +244,7 @@ function build(content, contentPath) {
     if (sec.title) {
       children.push(headingParagraph(sec.title, 1));
     }
+    const isRefs = /参考文献|references/i.test(sec.title || ""); // 参考文献整节六号
     for (const block of sec.blocks || []) {
       if (block.type === "heading") {
         const level = Number(block.level) || 2;
@@ -255,7 +260,7 @@ function build(content, contentPath) {
       } else {
         const text = String(block.text || "");
         for (const line of text.split("\n")) {
-          children.push(bodyParagraph(line));
+          children.push(bodyParagraph(line, isRefs ? { size: S_REFS } : {}));
         }
       }
     }

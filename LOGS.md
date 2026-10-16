@@ -4,6 +4,27 @@
 
 ---
 
+## v0.1.20（2026-10-16）docx 格式规范升级：TNR 正体 + 公式变量斜体 + 表格小五 + 参考文献六号
+
+**背景**：用户明确新的排版要求：英语字母和数字一律 Times New Roman（正体），
+只有公式中的变量采用斜体，其他情况不做改变；表格中的文字小五；参考文献六号。
+
+**本次改动**
+- `tools/build_docx.js`：正文/标题中的西文与数字由斜体改为 **Times New Roman 正体**
+  （移除 latin run 的 italics，斜体仅保留在 OMML 公式变量上）；
+  新增 `S_TABLE`（小五 9pt）与 `S_REFS`（六号 7.5pt）常量；
+  整节标题匹配「参考文献/References」时正文按六号渲染
+- `src/auto_paper_reading/omml.py`：每个数学 run 显式加 `w:rPr/w:rFonts`
+  Times New Roman（ascii/hAnsi），公式变量斜体由 OMML 默认数学样式保留
+- `SKILL.md` / `README.md`：格式规范表更新（封面西文改 TNR 正体；新增表格小五、
+  参考文献六号两行；新增「仅公式变量斜体」规则）
+- 重新生成 OpenSDI 讲解 docx 并全量复验
+- 验证：22 测试通过；48 公式 `verify_math.py` 通过；WPS 渲染 15 页抽验封面与公式页
+  （西文正体、公式变量斜体、无主题蓝）；docx XML 审计：普通 run 0 个斜体标记、
+  4167 处 ascii 字体全为 Times New Roman、349 个数学 run 全部带 TNR 字体声明
+
+---
+
 ## v0.1.19（2026-10-16）第四篇论文交付：OpenSDI（CVPR 2025）
 
 **背景**：用户指定讲解 CVPR 2025 论文 OpenSDI: Spotting Diffusion-Generated Images
