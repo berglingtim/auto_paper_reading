@@ -4,6 +4,37 @@
 
 ---
 
+## v0.1.19（2026-10-16）第四篇论文交付：OpenSDI（CVPR 2025）
+
+**背景**：用户指定讲解 CVPR 2025 论文 OpenSDI: Spotting Diffusion-Generated Images
+in the Open World（西安交大+南安普顿+哈工大）。论文 PDF 从 CVF Open Access 下载入库
+`papers/OpenSDI.pdf`（11 页）。
+
+**本次改动**
+- 新增完整讲解 docx（`output/opensdi/OpenSDI/讲解_OpenSDI_ ...docx`，15 页）：
+  - 五部分结构：1 基础知识（8 点：扩散模型与 T2I / 检测与定位两类任务 / CLIP / MAE /
+    Prompt Tuning / 自注意力与交叉注意力 / FPN / 域内与跨域泛化，每点含「为什么有效+例子+本文用法」）
+  - 2 方法灵感与发表期刊（OpenSDI 三设定配 Figure 1；现有数据集局限配 Table 1 原表；
+    OpenSDID 构建流程配 Figure 2 + Table 2 原表）
+  - 3 方法（SPM 框架 + Prompting/VCA/TVCA/VSA/FPN 与损失/训练配置，配 Figure 3 架构图逐块讲解）
+  - 4 变换过程（按「兵分两路→Prompting→VCA 逐层→FPN→TVCA→VSA 聚合」六步数据流，
+    形状/通道/注意力 QKV 来源逐步展开，复用 Figure 3 对着箭头走）
+  - 5 创新点与借鉴经验（定性 Figure 4 + 定位 Table 3 / 检测 Table 4 / 消融 Table 5 /
+    鲁棒性 Figure 5 全部原表原图嵌入 + 逐表读法讲解；另设「局限与展望」小节）
+  - 48 个 OMML 公式（V_c∈R^{M×D}、VCA 注意力 G^l=Softmax(QK^T/√d)V、残差 V_m^{l+1}=V_m^l+G^l、
+    M_fake/M_real∈R^{H×W}、V_cls={v^l_cls}_{l∈L}、L=L_CE+L_BCE+L_EDG 等）
+- 配图裁剪：论文为双栏 CVF 版式，自动提取效果差（MaskCLIP 架构图被切成碎片、
+  Figure 5 混入图注、Table 1-5 全部漏检），改为按渲染页人工框选坐标后 pymupdf 重裁
+  （图 200dpi / 原表 300dpi），10 张图逐张视觉核验
+- 修正解析器元数据：`paper.json` 期刊被误提取为 CVF 开放获取声明页脚，手工补正为
+  CVPR 2025 / 2025 及作者单位
+- 撰写中途修复 content.json LaTeX 反斜杠转义问题（公式命令在 JSON 中未双重转义），
+  并规范化为可解析状态
+- 验证：结构校验通过（170 段、10 图）；WPS 无头渲染 15 页预览逐页视觉核验
+  （无乱码、无主题蓝、图片完整、公式原生渲染）；`verify_math.py` 48 公式全部通过
+
+---
+
 ## v0.1.18（2026-10-16）安全加固与代码质量整理
 
 **背景**：v0.1.17 之后一批代码审查改进在工作区未提交、未记录，本次补齐记录并同步版本号。
