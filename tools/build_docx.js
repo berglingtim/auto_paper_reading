@@ -30,11 +30,20 @@ const {
 } = require("docx");
 
 const MAX_W_IN = 6.2; // A4 版心宽度约为 6.27in
-const MAX_H_IN = 8.5;
+const MAX_H_IN = 8.0; // 为图注保留至少约 1.7in 的版心空间
+const DEFAULT_FIGURE_HEIGHT = 4.5;
 const PAGE_WIDTH = 11906;
 const PAGE_MARGIN = 1440;
 const TEXT_WIDTH = PAGE_WIDTH - 2 * PAGE_MARGIN;
 let equationCounter = 0;
+let pageBreakPending = false;
+let reportLayout = {};
+
+function pageStartOptions() {
+  const pageBreakBefore = pageBreakPending;
+  pageBreakPending = false;
+  return { pageBreakBefore };
+}
 
 // ---- 字体（Windows 标准字体）----
 const CN_BODY = "宋体"; // 正文中文
@@ -119,6 +128,9 @@ function makeRuns(text, cnFont, size, allBold = false) {
 
 function bodyParagraph(line, opts = {}) {
   return new Paragraph({
+    ...pageStartOptions(),
+    keepLines: Boolean(opts.keepLines),
+    keepNext: Boolean(opts.keepNext),
     spacing: { after: opts.after != null ? opts.after : 120 },
     alignment: opts.alignment || AlignmentType.JUSTIFIED,
     children: makeRuns(line, CN_BODY, opts.size || S_BODY),
@@ -129,6 +141,7 @@ function equationParagraph(latex) {
   if (!String(latex).trim()) throw new Error("公式内容不能为空");
   equationCounter += 1;
   return new Paragraph({
+    ...pageStartOptions(),
     spacing: { before: 120, after: 120 },
     keepLines: true,
     tabStops: [
@@ -184,27 +197,44 @@ function headingParagraph(text, level) {
   else num = `${headingCounters[0]}.${headingCounters[1]}.${headingCounters[2]}`;
   const fullText = `${num} ${text}`;
   return new Paragraph({
+    ...pageStartOptions(),
+    keepNext: true,
+    keepLines: true,
     heading: cfg.heading,
     spacing: { before: 360, after: 200 },
     children: makeRuns(fullText, CN_HEAD, cfg.size),
   });
 }
 
-function fitSize(widthIn, heightIn) {
+function fitSize(widthIn, heightIn, maxHeightIn, maxWidthIn) {
   let w = Math.max(0.5, Number(widthIn) || 6.0);
   let h = Math.max(0.5, Number(heightIn) || 4.0);
-  const k = Math.min(MAX_W_IN / w, MAX_H_IN / h, 1);
+  const maxH = Math.min(MAX_H_IN, positiveSize(maxHeightIn, DEFAULT_FIGURE_HEIGHT));
+  const maxW = Math.min(MAX_W_IN, positiveSize(maxWidthIn, MAX_W_IN));
+  const k = Math.min(maxW / w, maxH / h, 1);
   return { width: Math.round(w * k * 96), height: Math.round(h * k * 96) };
 }
 
-function figureParagraph(fig, contentPath) {
+function positiveSize(value, fallback) {
+  if (value == null) return fallback;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) throw new Error("图片尺寸上限必须是正数");
+  return n;
+}
+
+function figureParagraph(fig, contentPath, block = {}) {
   const imgPath = resolvePath(contentPath, fig && fig.path);
   if (!imgPath || !fs.existsSync(imgPath)) {
     return bodyParagraph(`[图片缺失: ${fig ? fig.id : "unknown"}]`, { size: S_META });
   }
   const ext = path.extname(imgPath).toLowerCase().replace(".", "") || "png";
-  const size = fitSize(fig.width_in, fig.height_in);
+  const size = fitSize(fig.width_in, fig.height_in,
+    block.max_height_in ?? fig.max_height_in ?? reportLayout.max_figure_height_in,
+    block.max_width_in ?? fig.max_width_in ?? reportLayout.max_figure_width_in);
   return new Paragraph({
+    ...pageStartOptions(),
+    keepNext: Boolean(fig.caption),
+    keepLines: true,
     alignment: AlignmentType.CENTER,
     spacing: { before: 120, after: 60 },
     children: [
@@ -227,7 +257,7 @@ function captionParagraph(fig, note) {
   const paras = [];
   if (fig && fig.caption) {
     paras.push(...textParagraphs(`图注：${fig.caption}`, {
-      alignment: AlignmentType.CENTER, after: 60, size: S_META,
+      alignment: AlignmentType.CENTER, after: 60, size: S_META, keepLines: true,
     }));
   }
   if (note) {
@@ -241,6 +271,8 @@ function build(content, contentPath) {
   const figures = content.figures || [];
   headingCounters = [0, 0, 0]; // 每次构建重置编号
   equationCounter = 0;
+  pageBreakPending = false;
+  reportLayout = content.layout || {};
 
   // ---- 封面信息 ----
   const title = content.title || content.paper_title || "";
@@ -267,11 +299,17 @@ function build(content, contentPath) {
 
   // ---- 正文 ----
   for (const sec of content.sections || []) {
+    if (sec.page_break_before) pageBreakPending = true;
     if (sec.title) {
       children.push(headingParagraph(sec.title, 1));
     }
     const isRefs = /参考文献|references/i.test(sec.title || ""); // 参考文献整节六号
     for (const block of sec.blocks || []) {
+      if (block.type === "page_break") {
+        pageBreakPending = true;
+        continue;
+      }
+      if (block.page_break_before) pageBreakPending = true;
       if (block.type === "heading") {
         const level = Number(block.level) || 2;
         if (level >= 2 && level <= 3) {
@@ -283,7 +321,7 @@ function build(content, contentPath) {
         children.push(equationParagraph(block.latex || block.text || ""));
       } else if (block.type === "figure") {
         const fig = figures.find((f) => f.id === block.fig_id) || null;
-        children.push(figureParagraph(fig, contentPath));
+        children.push(figureParagraph(fig, contentPath, block));
         for (const p of captionParagraph(fig, block.note)) children.push(p);
       } else {
         const text = String(block.text || "");

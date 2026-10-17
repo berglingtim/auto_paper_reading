@@ -131,6 +131,18 @@ def _verify_docx(docx_path: Path, work_dir: Path) -> list[Path]:
     verify_dir = work_dir / "verify"
     verify_dir.mkdir(parents=True, exist_ok=True)
     pdf = doc_to_pdf(docx_path, verify_dir)
+    from .layout import audit_pdf
+    audit = audit_pdf(pdf)
+    (verify_dir / "layout_audit.json").write_text(
+        json.dumps(audit, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    flagged = [p['page'] for p in audit['pages'] if p['needs_review']]
+    if flagged:
+        print(f"[layout] 第 {flagged} 页有较大留白，请调整图片尺寸或分页后复核")
+    # 移除上一版多余页的预览，避免误把旧页面当成本次结果。
+    for old in verify_dir.glob("page_*.png"):
+        if re.fullmatch(r"page_\d+\.png", old.name):
+            old.unlink()
     doc = fitz.open(pdf)
     imgs = []
     for pno, page in enumerate(doc):

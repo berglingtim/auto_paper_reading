@@ -81,7 +81,7 @@ python tools/verify_math.py output/xxx/xxx                            # 公式�
 
 ## 目录结构
 
-### 报告排版（v0.2.17）
+### 报告排版（v0.2.19）
 
 - 正文与图后讲解默认两端对齐；封面、图注保留居中。
 - 公式独立一行，居中显示、编号右对齐，全文连续编号（1）、（2）……。
@@ -89,6 +89,10 @@ python tools/verify_math.py output/xxx/xxx                            # 公式�
 - 兼容旧文本中的 `$...$` 与多行 `$$...$$`，自动拆行并保留公式前后文字。
 - 使用 Python `--stage docx` 完成 OMML 公式注入；Node 脚本仅为中间排版阶段。
 - 更新对今后生成或重新生成的报告生效，已有 DOCX 需重新生成。
+- 图片默认等比例缩到最高 4.5in，避免大图挤走正文；图片与图注保持相邻，标题与后文同页。
+- 可在顶层 `layout` 设置 `max_figure_height_in` / `max_figure_width_in`，单个 figure 或引用它的 block 可用 `max_height_in` / `max_width_in` 覆盖。
+- 章节或 block 支持 `page_break_before: true`；`{"type":"page_break"}` 可在下一段内容前换页。
+- `--verify` 生成 `verify/layout_audit.json`，根据实际文字和图片位置提示大块留白。Agent 按 SKILL.md 主动检查全篇、调整单图尺寸或分页并重新渲染；审计不会自行改写内容，也不保证一次排版就最优。
 
 ```
 ├── SKILL.md / README.md        # 项目说明与 Agent 工作流
