@@ -127,13 +127,17 @@ function makeRuns(text, cnFont, size, allBold = false) {
 }
 
 function bodyParagraph(line, opts = {}) {
+  const size = opts.size || S_BODY;
+  const alignment = opts.alignment || AlignmentType.JUSTIFIED;
   return new Paragraph({
     ...pageStartOptions(),
     keepLines: Boolean(opts.keepLines),
     keepNext: Boolean(opts.keepNext),
     spacing: { after: opts.after != null ? opts.after : 120 },
-    alignment: opts.alignment || AlignmentType.JUSTIFIED,
-    children: makeRuns(line, CN_BODY, opts.size || S_BODY),
+    alignment,
+    // 字号为半磅；两个汉字宽度 = size 磅 = size * 20 twips。
+    indent: { firstLine: alignment === AlignmentType.JUSTIFIED ? size * 20 : 0 },
+    children: makeRuns(line, CN_BODY, size),
   });
 }
 
@@ -156,15 +160,15 @@ function equationParagraph(latex) {
   });
 }
 
-// 先提取完整公式，再拆文字换行，兼容旧 $...$ 和多行 $$...$$。
+// 仅 $$...$$ 拆为编号公式；$...$ 留在段内由 makeRuns 注入数学对象。
 function textParagraphs(text, opts = {}) {
-  const parts = String(text).split(/\$\$([\s\S]*?)\$\$|\$([^$\n]+)\$/g);
+  const parts = String(text).split(/\$\$([\s\S]*?)\$\$/g);
   const paras = [];
-  for (let i = 0; i < parts.length; i += 3) {
+  for (let i = 0; i < parts.length; i += 2) {
     for (const line of parts[i].split(/\r?\n/)) {
       if (line.trim()) paras.push(bodyParagraph(line, opts));
     }
-    const latex = parts[i + 1] ?? parts[i + 2];
+    const latex = parts[i + 1];
     if (latex !== undefined) paras.push(equationParagraph(latex));
   }
   return paras;

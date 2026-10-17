@@ -1,7 +1,8 @@
 """content.json 的读写与规范化（docx 排版脚本与 SKILL.md 共用的中间格式）。
 
 公式块使用 {"type": "equation", "latex": "y = Wx + b"}，不带分隔符或编号。
-排版器负责独立成行及全文连续编号；旧 text/note 的美元分隔公式仍兼容。
+排版器负责独立成行及全文连续编号；text/note 中 $...$ 为不编号的行内公式，
+$$...$$ 为独立编号公式。
 图片默认等比缩小；layout.max_figure_height_in/max_figure_width_in 为全局上限，
 figure 条目或 block 的 max_height_in/max_width_in 可覆盖。章节和 block 支持
 page_break_before；独立 page_break 块在下一实际内容前分页。

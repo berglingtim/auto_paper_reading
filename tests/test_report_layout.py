@@ -4,6 +4,25 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from auto_paper_reading.cli import _build_docx
 
 
+def test_body_indent_is_two_characters_but_caption_and_equation_are_not(tmp_path):
+    from PIL import Image
+    Image.new('RGB', (100, 100), 'white').save(tmp_path/'figure.png')
+    content = {'figures': [{'id': 'f', 'path': 'figure.png', 'caption': '图注'}],
+               'sections': [{'title': '方法', 'blocks': [
+                   {'type': 'text', 'text': '正文'},
+                   {'type': 'equation', 'latex': 'y=x'},
+                   {'type': 'figure', 'fig_id': 'f', 'note': '图后说明'},
+               ]}]}
+    d = docx.Document(_build_docx(content, tmp_path, tmp_path/'indent.docx'))
+    for text, points in [('正文', 24), ('图后说明', 21)]:
+        para = next(p for p in d.paragraphs if p.text == text)
+        assert para.paragraph_format.first_line_indent is not None
+        assert para.paragraph_format.first_line_indent.pt == points
+    for p in d.paragraphs:
+        if p.text in ['1 方法', '图注：图注'] or p._p.xpath('./m:oMath'):
+            assert not p.paragraph_format.first_line_indent
+
+
 def test_tall_figure_is_scaled_proportionally_and_keeps_caption(tmp_path):
     from PIL import Image
     Image.new('RGB', (400, 800), 'white').save(tmp_path/'tall.png')
@@ -57,10 +76,10 @@ def test_body_and_figure_explanation_are_justified(tmp_path):
 
 def test_equations_are_separate_numbered_and_preserve_surrounding_text(tmp_path):
     content = {'sections': [{'title': '方法', 'blocks': [
-        {'type': 'text', 'text': '前文$x^2$后文。\n$$\ny = 2x\n$$'},
+        {'type': 'text', 'text': '前文$$x^2$$后文。\n$$\ny = 2x\n$$'},
         {'type': 'equation', 'latex': r'z=\frac{1}{2}'},
     ]}, {'title': '变换', 'blocks': [
-        {'type': 'figure', 'fig_id': 'missing', 'note': '说明$a+b$结束'},
+        {'type': 'figure', 'fig_id': 'missing', 'note': '说明$$a+b$$结束'},
     ]}]}
     for name in ['first.docx', 'second.docx']:
         d = docx.Document(_build_docx(content, tmp_path, tmp_path/name))
@@ -71,3 +90,20 @@ def test_equations_are_separate_numbered_and_preserve_surrounding_text(tmp_path)
         texts = [p.text for p in d.paragraphs]
         assert all(t in texts for t in ['前文', '后文。', '说明', '结束'])
         assert '\ue000' not in d._element.xml
+
+
+def test_inline_math_stays_in_sentence_and_does_not_consume_numbers(tmp_path):
+    content = {'sections': [{'blocks': [
+        {'type': 'text', 'text': r'本文取 $h=8$，$d_k=d_v=d_{\mathrm{model}}/h=64$。'},
+        {'type': 'text', 'text': '$$y=x$$'},
+        {'type': 'text', 'text': r'其中 $x_i$ 为输入。'},
+    ]}]}
+    d = docx.Document(_build_docx(content, tmp_path, tmp_path/'inline.docx'))
+    assert len(d.paragraphs) == 3
+    p = d.paragraphs[0]
+    assert p.text == '本文取 ，。'
+    assert len(p._p.xpath('./m:oMath')) == 2
+    assert p._p.xpath('.//m:sSub')
+    assert d.paragraphs[1].text.strip() == '（1）'
+    assert d.paragraphs[2].text == '其中  为输入。'
+    assert '\ue000' not in d._element.xml
