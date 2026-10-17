@@ -1,4 +1,8 @@
-"""content.json 的读写与规范化（docx 排版脚本与 SKILL.md 共用的中间格式）。"""
+"""content.json 的读写与规范化（docx 排版脚本与 SKILL.md 共用的中间格式）。
+
+公式块使用 {"type": "equation", "latex": "y = Wx + b"}，不带分隔符或编号。
+排版器负责独立成行及全文连续编号；旧 text/note 的美元分隔公式仍兼容。
+"""
 
 from __future__ import annotations
 

@@ -26,10 +26,15 @@ const {
   ImageRun,
   HeadingLevel,
   AlignmentType,
+  TabStopType,
 } = require("docx");
 
 const MAX_W_IN = 6.2; // A4 版心宽度约为 6.27in
 const MAX_H_IN = 8.5;
+const PAGE_WIDTH = 11906;
+const PAGE_MARGIN = 1440;
+const TEXT_WIDTH = PAGE_WIDTH - 2 * PAGE_MARGIN;
+let equationCounter = 0;
 
 // ---- 字体（Windows 标准字体）----
 const CN_BODY = "宋体"; // 正文中文
@@ -115,9 +120,41 @@ function makeRuns(text, cnFont, size, allBold = false) {
 function bodyParagraph(line, opts = {}) {
   return new Paragraph({
     spacing: { after: opts.after != null ? opts.after : 120 },
-    alignment: opts.alignment || AlignmentType.LEFT,
+    alignment: opts.alignment || AlignmentType.JUSTIFIED,
     children: makeRuns(line, CN_BODY, opts.size || S_BODY),
   });
+}
+
+function equationParagraph(latex) {
+  if (!String(latex).trim()) throw new Error("公式内容不能为空");
+  equationCounter += 1;
+  return new Paragraph({
+    spacing: { before: 120, after: 120 },
+    keepLines: true,
+    tabStops: [
+      { type: TabStopType.CENTER, position: TEXT_WIDTH / 2 },
+      { type: TabStopType.RIGHT, position: TEXT_WIDTH },
+    ],
+    children: [
+      new TextRun({ text: "\t" }),
+      new TextRun({ text: MATH_MARK_S + String(latex).trim() + MATH_MARK_E }),
+      ...makeRuns(`\t（${equationCounter}）`, CN_BODY, S_BODY),
+    ],
+  });
+}
+
+// 先提取完整公式，再拆文字换行，兼容旧 $...$ 和多行 $$...$$。
+function textParagraphs(text, opts = {}) {
+  const parts = String(text).split(/\$\$([\s\S]*?)\$\$|\$([^$\n]+)\$/g);
+  const paras = [];
+  for (let i = 0; i < parts.length; i += 3) {
+    for (const line of parts[i].split(/\r?\n/)) {
+      if (line.trim()) paras.push(bodyParagraph(line, opts));
+    }
+    const latex = parts[i + 1] ?? parts[i + 2];
+    if (latex !== undefined) paras.push(equationParagraph(latex));
+  }
+  return paras;
 }
 
 // 三级标题自动编号状态（1 / 1.1 / 1.1.1）
@@ -189,24 +226,12 @@ function resolvePath(contentPath, p) {
 function captionParagraph(fig, note) {
   const paras = [];
   if (fig && fig.caption) {
-    paras.push(
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 60 },
-        children: makeRuns(`图注：${fig.caption}`, CN_BODY, S_META),
-      })
-    );
+    paras.push(...textParagraphs(`图注：${fig.caption}`, {
+      alignment: AlignmentType.CENTER, after: 60, size: S_META,
+    }));
   }
   if (note) {
-    for (const line of String(note).split("\n")) {
-      paras.push(
-        new Paragraph({
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 240 },
-          children: makeRuns(line, CN_BODY, S_META),
-        })
-      );
-    }
+    paras.push(...textParagraphs(note, { after: 240, size: S_META }));
   }
   return paras;
 }
@@ -215,6 +240,7 @@ function build(content, contentPath) {
   const children = [];
   const figures = content.figures || [];
   headingCounters = [0, 0, 0]; // 每次构建重置编号
+  equationCounter = 0;
 
   // ---- 封面信息 ----
   const title = content.title || content.paper_title || "";
@@ -253,15 +279,15 @@ function build(content, contentPath) {
         }
         continue;
       }
-      if (block.type === "figure") {
+      if (block.type === "equation") {
+        children.push(equationParagraph(block.latex || block.text || ""));
+      } else if (block.type === "figure") {
         const fig = figures.find((f) => f.id === block.fig_id) || null;
         children.push(figureParagraph(fig, contentPath));
         for (const p of captionParagraph(fig, block.note)) children.push(p);
       } else {
         const text = String(block.text || "");
-        for (const line of text.split("\n")) {
-          children.push(bodyParagraph(line, isRefs ? { size: S_REFS } : {}));
-        }
+        children.push(...textParagraphs(text, isRefs ? { size: S_REFS } : {}));
       }
     }
   }
@@ -285,7 +311,13 @@ function build(content, contentPath) {
         { id: "Title", name: "Title", basedOn: "Normal", next: "Normal", quickFormat: true, run: { color: "000000" } },
       ],
     },
-    sections: [{ children }],
+    sections: [{
+      properties: { page: {
+        size: { width: PAGE_WIDTH, height: 16838 },
+        margin: { top: PAGE_MARGIN, bottom: PAGE_MARGIN, left: PAGE_MARGIN, right: PAGE_MARGIN },
+      } },
+      children,
+    }],
   });
 }
 

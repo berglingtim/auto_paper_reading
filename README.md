@@ -81,6 +81,15 @@ python tools/verify_math.py output/xxx/xxx                            # 公式�
 
 ## 目录结构
 
+### 报告排版（v0.2.17）
+
+- 正文与图后讲解默认两端对齐；封面、图注保留居中。
+- 公式独立一行，居中显示、编号右对齐，全文连续编号（1）、（2）……。
+- 推荐公式块：`{"type":"equation","latex":"y = Wx + b"}`，不手工写编号。
+- 兼容旧文本中的 `$...$` 与多行 `$$...$$`，自动拆行并保留公式前后文字。
+- 使用 Python `--stage docx` 完成 OMML 公式注入；Node 脚本仅为中间排版阶段。
+- 更新对今后生成或重新生成的报告生效，已有 DOCX 需重新生成。
+
 ```
 ├── SKILL.md / README.md        # 项目说明与 Agent 工作流
 ├── docs/images/                # README 效果演示截图
