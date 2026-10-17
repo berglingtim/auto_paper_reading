@@ -74,14 +74,14 @@ Agent 就会按 `SKILL.md` 工作流自动**搜索下载论文 → 解析裁剪�
 
 ```bash
 python run.py papers/xxx.pdf --stage docx --out output/xxx --verify   # WPS 无头渲染预览
-python tools/verify_math.py output/xxx/xxx                            # 公式渲染自检
+python tools/verify_math.py "output/xxx/讲解_标题.docx"                # 指定交付版本，检查对应 PDF
 ```
 
 再对公式密集区域视觉抽验；全部通过才交付。输出 docx 被占用（如正被 WPS 打开）时自动写 `_v2` 文件。
 
 ## 目录结构
 
-### 报告排版（v0.2.21）
+### 报告排版（v0.2.22）
 
 - 正文与图后讲解默认两端对齐；封面、图注保留居中。
 - 正文与图后讲解首行缩进 2 个汉字，随字号调整；标题、独立公式和图注不缩进。
@@ -89,6 +89,8 @@ python tools/verify_math.py output/xxx/xxx                            # 公式�
 - 推荐公式块：`{"type":"equation","latex":"y = Wx + b"}`，不手工写编号。
 - `$...$` 在句内渲染为可编辑公式，不编号；多行 `$$...$$` 自动拆为独立编号公式并保留前后文字。句内变量和上下标同样使用 LaTeX。
 - 使用 Python `--stage docx` 完成 OMML 公式注入；Node 脚本仅为中间排版阶段。
+- 数学检查强制执行：逐公式核对 `_`/`^` 与 OMML 上下标结构，扫描正文及数学对象残留；失败阻止成功返回，同名 `.math_audit.json` 记录位置及问题。
+- 文件名等字面下划线须用 `math_review_exceptions` 记录完整段落和 `reason` 后逐项复核；公式内部残留不能豁免。交付前仍须渲染并逐页核对，自动检查不能证明数学语义或视觉效果正确。
 - 更新对今后生成或重新生成的报告生效，已有 DOCX 需重新生成。
 - 图片默认等比例缩到最高 4.5in，避免大图挤走正文；图片与图注保持相邻，标题与后文同页。
 - 可在顶层 `layout` 设置 `max_figure_height_in` / `max_figure_width_in`，单个 figure 或引用它的 block 可用 `max_height_in` / `max_width_in` 覆盖。

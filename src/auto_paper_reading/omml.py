@@ -159,6 +159,8 @@ class LatexParser:
             return items
         if ch == "\\":
             return self.parse_command()
+        if ch in ("_", "^", "}"):
+            raise LatexError(f"缺少基底或多余标记: {ch!r}，位置 {self.i}")
         if ch == " ":
             self.next()
             return []
@@ -245,10 +247,11 @@ class LatexParser:
                 return [_run(self.s[start : self.i - 1])]
             raise LatexError("\\text 需要 {…}")
         if cmd in FUNCS:
-            arg = self.parse_group()
+            name = self.parse_scripts([_run(cmd, sty="p")])
+            arg = self.parse_item() if self.peek() and self.peek() not in ")}]" else []
             func = _elem("func")
             fn = etree.SubElement(func, _M + "fName")
-            fn.append(_run(cmd, sty="p"))  # 函数名用正体（plain）
+            _fill(fn, name)
             e = etree.SubElement(func, _M + "e")
             _fill(e, arg)
             return [func]
@@ -292,7 +295,7 @@ class LatexParser:
         return d
 
     def parse_seq_until_right(self) -> list:
-        """解析 \left...\right 之间的内容，遇到 \right 停止并消费之。"""
+        r"""解析 \left...\right 之间的内容，遇到 \right 停止并消费之。"""
         out = []
         while True:
             if not self.peek():
@@ -321,13 +324,22 @@ class LatexParser:
 
     def parse_item(self) -> list:
         base = self.parse_group()
+        return self.parse_scripts(base)
+
+    def parse_scripts(self, base: list) -> list:
         sub = sup = None
+        self.skip_ws()
         while self.peek() in ("^", "_"):  # 空串 in 字符串恒为 True，须用元组
             op = self.next()
             if op == "^":
+                if sup is not None:
+                    raise LatexError("重复上标，请使用花括号明确结构")
                 sup = self.parse_group()
             else:
+                if sub is not None:
+                    raise LatexError("重复下标，请使用花括号明确结构")
                 sub = self.parse_group()
+            self.skip_ws()
         if sub is None and sup is None:
             return base
         ss = _elem("sSubSup" if (sub is not None and sup is not None)
@@ -348,7 +360,15 @@ def latex_to_omml(latex: str) -> etree._Element:
     latex = latex.strip()
     if not latex:
         raise LatexError("空公式")
-    return LatexParser(latex).parse()
+    result = LatexParser(latex).parse()
+    # 每条公式独立核对，不能用别处的上下标替这条公式“通过检查”。
+    for marker, tag in (("_", "sub"), ("^", "sup")):
+        actual = sum(bool(len(el)) for el in result.iter(_M + tag))
+        if actual != latex.count(marker):
+            raise LatexError(f"{marker} 结构数量不匹配：源码 {latex.count(marker)}，OMML {actual}")
+    if any(re.search(r"[_^]", el.text or "") for el in result.iter(_M + "t")):
+        raise LatexError("公式中残留未转换的 _ 或 ^")
+    return result
 
 
 MATH_MARK = ("\uE000", "\uE001")  # 私有区字符，docx-js 生成的占位标记

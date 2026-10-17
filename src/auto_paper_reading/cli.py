@@ -65,8 +65,7 @@ def _inject_math(docx_path: Path) -> int:
             try:
                 omml = latex_to_omml(latex)
             except Exception as e:
-                print(f"  [warn] 公式解析失败 {latex[:40]!r}: {e}")
-                continue
+                raise ValueError(f"公式解析失败，禁止交付 {latex!r}: {e}") from e
             run._r.addprevious(omml)
             run._r.getparent().remove(run._r)
             count += 1
@@ -104,6 +103,8 @@ def _build_docx(content: dict, work_dir: Path, out_path: Path) -> Path:
     n_math = _inject_math(out_path)
     if n_math:
         print(f"  [math] 注入 {n_math} 个 OMML 公式（WPS 原生渲染）")
+    from .math_audit import require_math_audit
+    require_math_audit(out_path, content.get('math_review_exceptions'))
     return out_path
 
 

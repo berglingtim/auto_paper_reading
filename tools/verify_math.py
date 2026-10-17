@@ -1,107 +1,64 @@
-# -*- coding: utf-8 -*-
-"""交付前 LaTeX 渲染自检：每个公式的关键符号必须在 WPS 渲染的 PDF 文字层中出现。
-
-用法: python tools/verify_math.py [output/论文名/论文名]
-"""
+"""逐公式结构检查 + 对应 PDF 残留检查；不能代替逐页视觉复核。"""
+import argparse
 import json
+from pathlib import Path
 import re
 import sys
-from pathlib import Path
 
 import fitz
 
-sys.stdout.reconfigure(encoding="utf-8")
-
-root = Path(__file__).resolve().parents[1]
-# 目标论文输出目录：python tools/verify_math.py [output/论文名/论文名]（默认 IAPL）
-target = sys.argv[1] if len(sys.argv) > 1 else "output/iapl/IAPL"
-target_dir = (root / target).resolve()
-if not target_dir.is_relative_to(root):
-    raise SystemExit(f"拒绝越界路径（必须在项目目录内）: {target}")
-data = json.loads((target_dir / "content.json").read_text(encoding="utf-8"))
-pdfs = list((target_dir / "verify").glob("讲解_*.pdf"))
-if not pdfs:
-    print("未找到渲染 PDF，请先运行 --verify")
-    sys.exit(1)
-doc = fitz.open(pdfs[0])
-pages_text = [p.get_text("text") for p in doc]
-all_text = "\n".join(pages_text)
-
-# 每个公式的"关键符号"映射（渲染后必须在 PDF 文字层出现）在下方 if 链中维护
-formulas = []
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'src'))
+from auto_paper_reading.math_audit import audit_docx
 
 
-def walk(node):
-    if isinstance(node, str):
-        formulas.extend(re.findall(r"\$([^$]+)\$", node))
-    elif isinstance(node, dict):
-        for v in node.values():
-            walk(v)
-    elif isinstance(node, list):
-        for v in node:
-            walk(v)
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('target', help='明确的 DOCX 路径，或仅含一个 DOCX 的目录')
+    args = parser.parse_args(argv)
+    target = Path(args.target).resolve()
+    if target.is_dir():
+        candidates = list(target.glob('*.docx'))
+        if len(candidates) != 1:
+            parser.error('目录中没有唯一 DOCX；请指定需要交付的具体版本文件')
+        target = candidates[0]
+    if not target.is_file() or target.suffix.lower() != '.docx':
+        parser.error('请指定存在的 DOCX 文件')
+    content = target.parent / 'content.json'
+    exceptions = json.loads(content.read_text(encoding='utf-8')).get('math_review_exceptions', []) if content.exists() else []
+    report = audit_docx(target, exceptions)
+    pdfs = [p for p in (target.parent/'verify'/f'{target.stem}.pdf', target.with_suffix('.pdf')) if p.exists()]
+    if len(pdfs) != 1:
+        report['issues'].append({'error': '未找到唯一同名 PDF；请重新渲染指定 DOCX'})
+    else:
+        pdf = pdfs[0]
+        report['pdf'] = str(pdf)
+        if pdf.stat().st_mtime < target.stat().st_mtime:
+            report['issues'].append({'error': 'PDF 早于 DOCX，请重新渲染'})
+        with fitz.open(pdf) as document:
+            report['page_count'] = len(document)
+            for page_no, page in enumerate(document, 1):
+                for line in page.get_text().splitlines():
+                    if re.search(r'[_^\ue000\ue001]|\\[A-Za-z]+', line):
+                        literal = next((x for x in exceptions if x.get('reason', '').strip()
+                            and line.strip() and line.strip() in x.get('text', '')), None)
+                        if literal is None:
+                            report['issues'].append({'page': page_no, 'text': line,
+                                                     'error': 'PDF 有未复核的数学标记残留'})
+    report['passed'] = not report['issues']
+    out = target.with_suffix('.math_audit.json')
+    out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+    print(f"公式数: {len(report['formulas'])}；问题数: {len(report['issues'])}；报告: {out}")
+    for issue in report['issues']:
+        print(issue)
+    if report['passed']:
+        print('自动检查通过；仍须逐页视觉检查公式的上下标位置、基底与可读性。')
+    return 0 if report['passed'] else 1
 
 
-walk(data)
-print(f"共 {len(formulas)} 个公式，逐条检查……")
-
-# 回退检查：某些符号（| 定界符、∑ nary）WPS 渲染为矢量图形，不进 PDF 文字层，
-# 此时改为在 docx 的 OMML 结构里确认存在
-docx_files = list((root / target).glob("讲解_*.docx"))
-omml_xml = ""
-if docx_files:
-    import zipfile
-    with zipfile.ZipFile(docx_files[0]) as z:
-        omml_xml = z.read("word/document.xml").decode("utf-8")
-
-
-def structural_ok(sym: str) -> bool:
-    """符号在 docx OMML 结构中是否存在。"""
-    if sym == "|":
-        return 'm:val="|"' in omml_xml
-    if sym == "∑":
-        return "∑" in omml_xml
-    return sym in omml_xml
-
-
-issues = []
-for f in formulas:
-    checks = []
-    if "\\in" in f:
-        checks.append("∈")
-    if "\\odot" in f:
-        checks.append("⊙")
-    if "\\sigma" in f:
-        checks.append("σ")
-    if "\\sum" in f or "\\prod" in f or "\\int" in f:
-        checks.append("∑" if "\\sum" in f else ("∏" if "\\prod" in f else "∫"))
-    if "\\times" in f:
-        checks.append("×")
-    if "\\alpha" in f:
-        checks.append("α")
-    if "\\to" in f:
-        checks.append("→")
-    if "\\mathbb" in f:
-        checks.append("R")
-    if "\\hat" in f:
-        checks.append("D")
-    if "\\left" in f:
-        checks.append("|")
-    for c in checks:
-        if c in all_text:
-            continue  # 文字层可见
-        if structural_ok(c):
-            continue  # 结构存在（矢量渲染，视觉需人工抽验）
-        issues.append(f"{f[:45]} 缺符号 {c!r}（文字层与 OMML 结构均无）")
-if issues:
-    print("发现问题:")
-    for i in issues:
-        print("  -", i)
-else:
-    print("全部公式关键符号均在渲染 PDF 中出现 ✓")
-
-# 额外检查：文字层中公式常用符号总量
-from collections import Counter
-cnt = Counter(all_text)
-print("符号统计:", {s: cnt[s] for s in "∈⊙σ∑×→α" if cnt[s]})
-doc.close()
+if __name__ == '__main__':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except AttributeError:
+        pass
+    sys.exit(main())

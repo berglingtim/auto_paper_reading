@@ -206,7 +206,8 @@ pix.save("output/xxx/figures/fig_XX_pN.png")
 ## Step 4 生成 docx
 
 ```bash
-node tools/build_docx.js output/xxx/content.json "output/xxx/讲解_<标题>.docx"
+python run.py papers/xxx.pdf --stage docx --out output/xxx --verify
+# 不直接交付 Node 中间产物：Python 阶段负责 OMML 注入及强制数学检查。
 ```
 
 ## Step 5 校验排版
@@ -250,8 +251,11 @@ python run.py papers/xxx.pdf --stage docx --out output/xxx --verify
 0. **交付前必须自检 LaTeX 渲染**（硬性要求）：重新生成 docx 后，必须运行
    `python run.py papers/xxx.pdf --stage docx --out output/xxx --verify` 渲染预览，
    然后**逐页核验所有公式**：
-   - 跑 `python tools/verify_math.py` 自动化自检（每个公式的关键符号必须在渲染 PDF
-     文字层出现；`|`/`∑` 等矢量渲染符号回退检查 docx 的 OMML 结构）；
+   - 跑 `python tools/verify_math.py "output/xxx/讲解_<标题>.docx"`，明确指定本次交付版本。目录内多版本时禁止默认取第一个；必须有对应同名且不早于 DOCX 的渲染 PDF。
+   - **凡看到 `_` 或 `^` 都必须逐项核查**：先核查 content.json 中是否为 LaTeX 上下标，再核查生成的 OMML 基底、sub/sup 结构，最后查看渲染页上的实际位置。公式内已有一个正确上下标，不能替另一个错误上下标通过检查；正文、图注、图后说明、标题、表格、页眉页脚均在复核范围。
+   - Python 转换器逐公式检查源码 `_`/`^` 数量与 OMML 上下标数量；解析失败、原始标记残留、空上下标结构均阻止成功返回。生成同名 `.math_audit.json`，交付前逐项清零 issues。
+   - 文件名、代码标识符等确需保留字面 `_`/`^`，必须核实语义，并在 content.json 顶层 `math_review_exceptions` 逐条记录完整段落原文和理由，例如 `[{"text":"文件 model_weights.bin","reason":"实际权重文件名，非数学变量"}]`；不得用宽泛通配规则放过变量，也不得为通过检查将公式登记为例外。数学对象内部的标记残留不能豁免。
+   - 自动结构检查不等于视觉验收，PDF 文字层也不能证明上下标的位置正确。必须逐页查看所有公式，特别是 `\log_{k} n`、`\sin^2 x`、组合上下标、函数参数及行内公式，按原文确认基底和含义。
    - 再对公式密集区域裁剪放大用视觉确认（上下标、分数、求和上下限、定界符是否完整）。
    发现渲染问题 → 修 content.json 或 omml.py → 重新生成 → 再验证，直到全部通过才交付。
 1. **对话中讲解**：按五部分结构，用口语化但专业的方式把论文讲给用户听，
