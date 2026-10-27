@@ -12,6 +12,19 @@ Agent 就会按 `SKILL.md` 工作流自动**搜索下载论文 → 解析裁剪�
 **不调用任何 LLM API、不需要任何 API key**：所有「智能」都由 Agent 自己完成，
 本仓库只提供机械的解析、裁剪、排版与自检脚本。
 
+## 先读完整案例：Attention Is All You Need
+
+想先看看生成效果，可以直接阅读 `output` 中的中英文完整讲解，无须安装依赖：
+
+| 语言 | 在线阅读 | 下载可编辑 Word |
+|:---:|:---:|:---:|
+| 中文 · 14 页 | [阅读 PDF](output/attention_is_all_you_need/Attention_Is_All_You_Need_zh.pdf) | [下载 DOCX](output/attention_is_all_you_need/Attention_Is_All_You_Need_zh.docx?raw=true) |
+| English · 15 pages | [Read PDF](output/attention_is_all_you_need/Attention_Is_All_You_Need_en.pdf) | [Download DOCX](output/attention_is_all_you_need/Attention_Is_All_You_Need_en.docx?raw=true) |
+
+两份案例均包含摘要、核心符号表、ConvS2S baseline 对比、完整方法与数据流、原文图表，以及结合后续论文的“证据 → 推断”场景分析。已通过公式检查和逐页视觉检查，详见[案例说明与来源](output/attention_is_all_you_need/README.md)。
+
+完整案例随 **v0.4.1** 发布；`examples/` 中的短示例用于演示内容格式与排版。
+
 ## v0.4.0 中英文双语
 
 - README 默认展示中文，顶部按钮可切换[完整英文说明](README.en.md)；Agent 工作流也有[英文版](SKILL.en.md)。
@@ -189,7 +202,7 @@ python tools/verify_math.py "output/xxx/讲解_标题.docx"                # 指
 │   ├── build_docx.js           # docx-js 排版（字体/字号/编号/公式占位）
 │   └── verify_math.py          # 公式渲染交付自检
 ├── papers/                     # 论文输入目录（Agent 自动下载或用户提供）
-├── output/                     # 讲解输出目录（每篇论文一个子目录）
+├── output/                     # 讲解输出；公开 Attention 中英文案例，其余默认忽略
 ├── tests/                      # 功能与回归测试（python -m pytest tests/ -q）
 ├── requirements.txt / package.json / pytest.ini
 ```

@@ -16,6 +16,14 @@ config.json
 # 输出与论文（用户私有数据）
 output/*
 !output/.gitkeep
+# 公开案例：仅发布已检查的成品与阅读说明
+!output/attention_is_all_you_need/
+output/attention_is_all_you_need/*
+!output/attention_is_all_you_need/README.md
+!output/attention_is_all_you_need/Attention_Is_All_You_Need_zh.docx
+!output/attention_is_all_you_need/Attention_Is_All_You_Need_zh.pdf
+!output/attention_is_all_you_need/Attention_Is_All_You_Need_en.docx
+!output/attention_is_all_you_need/Attention_Is_All_You_Need_en.pdf
 papers/*
 !papers/.gitkeep
 

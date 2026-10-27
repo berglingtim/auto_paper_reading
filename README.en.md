@@ -8,6 +8,19 @@ A **paper-reading toolkit for AI agents**. Open this repository in a workspace w
 
 Reports can be written in **Chinese or English**. Chinese remains the default. The toolkit **does not call an LLM API or require an API key**: the agent does the research, visual analysis, and writing. The scripts handle parsing, cropping, typesetting, and checks.
 
+## Read a complete example: Attention Is All You Need
+
+See the finished bilingual reports in `output` before installing anything:
+
+| Language | Read online | Download editable Word |
+|:---:|:---:|:---:|
+| 中文 · 14 pages | [Read PDF](output/attention_is_all_you_need/Attention_Is_All_You_Need_zh.pdf) | [Download DOCX](output/attention_is_all_you_need/Attention_Is_All_You_Need_zh.docx?raw=true) |
+| English · 15 pages | [Read PDF](output/attention_is_all_you_need/Attention_Is_All_You_Need_en.pdf) | [Download DOCX](output/attention_is_all_you_need/Attention_Is_All_You_Need_en.docx?raw=true) |
+
+Both reports include an abstract, core notation, a ConvS2S baseline comparison, the complete method and data flow, original figures and tables, and scenario analysis using **evidence → inference** from subsequent research. Equations and every rendered page have been checked. See the [case study notes and sources](output/attention_is_all_you_need/README.md).
+
+These complete reports are published with **v0.4.1**. The shorter files in `examples/` demonstrate the content format and layout.
+
 ## What's new in v0.4.0
 
 - Chinese and English documentation, with language buttons at the top. The GitHub landing page remains Chinese.
@@ -153,7 +166,7 @@ src/auto_paper_reading/        Parsing, cropping, content, OMML, and checks
 tools/build_docx.js            DOCX layout builder
 tools/verify_math.py           Delivery-time equation checks
 papers/                       Local input papers (ignored)
-output/                       Generated reports and previews (ignored)
+output/                       Public Attention case study; other generated output is ignored
 tests/                        Functional and regression tests
 requirements.txt              Python dependencies
 package.json                  Node dependency: docx
