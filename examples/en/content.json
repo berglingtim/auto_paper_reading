@@ -1,0 +1,34 @@
+{
+  "language": "en",
+  "title": "Bilingual Report Layout Example",
+  "meta": {"journal": "Formatting demonstration", "year": "2026"},
+  "abstract": "This runnable example checks the abstract, concise notation table, three heading levels, editable equations, and monochrome three-line tables. It uses an attention operation to illustrate the content format. It contains no dataset results and is not a complete paper analysis. A real report must also verify the paper and its baselines, include original figures and result tables, and research relevant field challenges before writing part 5.",
+  "symbols": [
+    {"symbol": "$Q$", "meaning": "Query matrix", "shape": "$n \\times d_k$", "role": "Matches queries against keys", "source": "Example attention equation"},
+    {"symbol": "$K, V$", "meaning": "Key and value matrices", "shape": "$m \\times d_k$; $m \\times d_v$", "role": "Provide matching features and information to aggregate", "source": "Example attention equation"}
+  ],
+  "sections": [
+    {"title": "Prerequisites", "blocks": [
+      {"type": "heading", "level": 2, "text": "Attention"},
+      {"type": "heading", "level": 3, "text": "Queries and information aggregation"},
+      {"type": "text", "text": "**Attention** aggregates values according to how well queries match keys. For example, a query can draw information from two values with different weights. This example demonstrates equation layout without making training or evaluation claims."}
+    ]},
+    {"title": "Motivation and publication", "blocks": [
+      {"type": "text", "text": "This is a formatting example with no associated publication venue. A real report supplies verified publication details, research motivation, and the ideas behind the method here."}
+    ]},
+    {"title": "Method", "page_break_before": true, "blocks": [
+      {"type": "equation", "latex": "\\mathrm{Attention}(Q,K,V)=\\mathrm{softmax}(\\frac{QK^T}{\\sqrt{d_k}})V"},
+      {"type": "text", "text": "There are $n$ queries and $m$ keys and values. Queries and keys have feature dimension $d_k$; values have dimension $d_v$. These auxiliary dimensions are explained beside the equation rather than given separate notation rows."},
+      {"type": "table", "headers": ["Step", "Output shape", "Purpose"], "column_weights": [1, 1.2, 2.5], "rows": [
+        ["Query-key product", "$n \\times m$", "Compute matching scores for each query"],
+        ["Weighted value aggregation", "$n \\times d_v$", "Return the information collected by each query"]
+      ]}
+    ]},
+    {"title": "How the input changes", "blocks": [
+      {"type": "text", "text": "Compute query-key scores, scale and normalize each row, then aggregate the value matrix. A real report also explains where the matrices come from, which parameters are trained, and how the application works, using the original figures."}
+    ]},
+    {"title": "Contributions and transferable lessons", "blocks": [
+      {"type": "text", "text": "This fixture checks layout only. It makes no claims about novelty, baseline performance, or current field challenges. A full report first researches related work, then uses evidence and inference to explain what the paper solves, which scenarios remain untested, and which issues later research addresses."}
+    ]}
+  ]
+}

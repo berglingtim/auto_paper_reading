@@ -1,14 +1,25 @@
 # auto_paper_reading
 
+[![简体中文](docs/images/lang-zh.svg)](README.md) [![English](docs/images/lang-en.svg)](README.en.md)
+
+**简体中文（默认）** · [English documentation](README.en.md)
+
 一个给 AI Agent 用的**论文阅读工具包（skill）**：把本仓库交给带视觉能力的 Agent
 （Claude Code / Codex / Qwen Code / Kimi Code 等），对它说一句「阅读 XXX 论文」，
 Agent 就会按 `SKILL.md` 工作流自动**搜索下载论文 → 解析裁剪关键图 → 视觉选图 →
-查找 baseline 与领域问题 → 图文结合撰写讲解 → 生成 docx → 渲染自检**，最终交付一份图文结合的中文讲解 docx。
+查找 baseline 与领域问题 → 图文结合撰写讲解 → 生成 docx → 渲染自检**，最终交付中文或英文讲解 docx，默认中文。
 
 **不调用任何 LLM API、不需要任何 API key**：所有「智能」都由 Agent 自己完成，
 本仓库只提供机械的解析、裁剪、排版与自检脚本。
 
-## v0.3.0 更新
+## v0.4.0 中英文双语
+
+- README 默认展示中文，顶部按钮可切换[完整英文说明](README.en.md)；Agent 工作流也有[英文版](SKILL.en.md)。
+- 报告支持 `language: "zh"` / `"en"`，省略时保持中文。英文版自动切换摘要/符号表表头、图注前缀、年份、章节/公式编号和输出文件名前缀。
+- `--language en` / `--language zh` 可覆盖 `content.json` 的语言设置。正文、章节名和表格内容由 Agent 按目标语言撰写；该选项只控制排版语言，不是自动翻译服务。
+- [中文示例](examples/zh/content.json)与[英文示例](examples/en/content.json)采用同一结构；生成方法见[双语排版示例](examples/README.md)。
+
+## v0.3.0 报告规范升级
 
 - **先看结论再读方法**：正文前增加摘要和核心符号表；摘要包含背景、应用场景、解决的问题与具体数据集表现，简单临时变量随用随释。
 - **讲清方法改进**：定位论文的 baseline，核实可靠原作后对比双方核心机制与具体改动；找不到可靠资料时跳过。
@@ -25,6 +36,30 @@ Agent 就会按 `SKILL.md` 工作流自动**搜索下载论文 → 解析裁剪�
 3. Agent 按 `SKILL.md` 逐步执行，产出 `output/<论文名>/<论文名>/讲解_*.docx`。
 
 > 前提：Agent 具备联网检索与读图能力；本机装有 Python 3.10+ 与 Node.js。
+
+首次安装依赖：
+
+```bash
+python -m pip install -r requirements.txt
+npm install
+```
+
+**选择报告语言**：说“用中文讲解 Attention Is All You Need”或“Explain Attention Is All You Need in English”。
+需要两种版本时说“生成中文和英文两份讲解”，Agent 会在不同输出目录分别撰写、生成并检查。
+
+```bash
+# 英文流程；中文可将 en 换为 zh，省略 --language 时默认中文
+python run.py papers/paper.pdf --stage prep --out output/en --language en
+# Agent 在 output/en/paper/content.json 撰写英文内容，设置 "language": "en"
+python run.py papers/paper.pdf --stage docx --out output/en --language en --verify
+```
+
+实际工作目录为 `<--out>/<论文文件名（不含扩展名）>/`。DOCX 阶段未传 `--language` 时，
+优先读取 `content.json.language`，再默认中文；英文文件名为 `Explanation_<论文标题>.docx`。
+
+PDF 解析和 DOCX 生成不依赖办公软件；**Word 输入转换与完整渲染检查目前只实现了 Windows WPS 无头后端**。
+未安装相应转换程序时仍可生成 DOCX，但不能声称通过了完整视觉检查。
+目前不宣称国际版 WPS、Microsoft Word、LibreOffice 或 macOS/Linux 渲染已验证兼容。
 
 ## 效果演示
 
@@ -46,7 +81,8 @@ Agent 就会按 `SKILL.md` 工作流自动**搜索下载论文 → 解析裁剪�
 - **符号表**：只收录贯穿方法、反复出现、论文特有或易混淆的核心符号，解释含义、类型/维度、作用与出处。
   简单索引、临时变量随用随释，维度中的辅助量可在同一行解释，不必另列。原文没给的维度不猜填。
 
-五部分正文采用三级编号标题 **一 / 1.1 / 1.1.1**；下一章为 **二 / 2.1 / 2.1.1**，摘要与符号表不占编号：
+中文正文采用三级编号标题 **一 / 1.1 / 1.1.1**；下一章为 **二 / 2.1 / 2.1.1**。
+英文为 **1 / 1.1 / 1.1.1**；摘要与符号表不占编号：
 
 1. **基础知识讲解** —— 前置知识拆成小点逐个讲（CLIP、ViT、注意力、Adapter/LoRA、
    Prompt Learning、测试时自适应、高频信号与 DCT、任务设定等），每点注明本文用法
@@ -81,7 +117,7 @@ baseline 检索聚焦论文明确使用的基础方法或实验对照，区分�
 - **英语字母和数字一律 Times New Roman 正体**（中文正体，排版脚本自动切分）
 - **仅公式中的变量（英语字母）采用斜体**（由 OMML 数学样式承担），其他情况不做改变
 - **全文档字体颜色统一黑色**（含标题/正文/公式/图注，禁止主题蓝）
-- 标题**自动编号**（一级 一、二、三……，二级 1.1、2.1……，三级 1.1.1、2.1.1……），content.json 只写标题文字
+- 标题**自动编号**（中文一级 一、二、三……；英文一级 1、2、3……；二/三级均为 1.1 / 1.1.1），content.json 只写标题文字
 - 所有生成的原生表格统一黑白三线表：顶线/底线 **1.5pt**，表头下方线 **0.75pt**，无竖线、无其他行间线，白底黑字。
   表格整体居中，全部单元格（含表头、说明列和公式）均**水平、垂直居中**。原论文表格截图作为证据图保留原貌。
 - 正文专业名词用 `**术语**` 加粗；公式用 `$LaTeX$` 包裹，自动转为 OMML 由 **WPS 原生渲染**
@@ -111,10 +147,9 @@ python tools/verify_math.py "output/xxx/讲解_标题.docx"                # 指
 
 再对公式密集区域视觉抽验；全部通过才交付。输出 docx 被占用（如正被 WPS 打开）时自动写 `_v2` 文件。
 
-## 目录结构
+## 报告规范（v0.4.0）
 
-### 报告规范（v0.3.0）
-
+- 顶层 `language` 支持 `"zh"`（默认）或 `"en"`；正文不由排版器自动翻译。
 - 新报告顶层填写 `abstract`（非空中文字符串）和 `symbols`（符号数组），自动放在正文前；
   `symbols` 每项填写 `symbol`、`meaning`、`shape`、`role`、`source`，数学内容用 `$...$`。
   没有需要集中查询的核心符号时用 `[]`，简单变量在正文解释；旧版未含这两个字段的 content.json 仍可生成。
@@ -124,7 +159,7 @@ python tools/verify_math.py "output/xxx/讲解_标题.docx"                # 指
 
 - 正文与图后讲解默认两端对齐；封面、图注保留居中。
 - 正文与图后讲解首行缩进 2 个汉字，随字号调整；标题、独立公式和图注不缩进。
-- 独立公式单独一行，居中显示、编号右对齐，全文连续编号（1）、（2）……。
+- 独立公式单独一行，居中显示、编号右对齐；中文为（1）、（2）……，英文为 (1)、(2)……，均全文连续编号。
 - 推荐公式块：`{"type":"equation","latex":"y = Wx + b"}`，不手工写编号。
 - `$...$` 在句内渲染为可编辑公式，不编号；多行 `$$...$$` 自动拆为独立编号公式并保留前后文字。句内变量和上下标同样使用 LaTeX。
 - 使用 Python `--stage docx` 完成 OMML 公式注入；Node 脚本仅为中间排版阶段。
@@ -136,8 +171,12 @@ python tools/verify_math.py "output/xxx/讲解_标题.docx"                # 指
 - 章节或 block 支持 `page_break_before: true`；`{"type":"page_break"}` 可在下一段内容前换页。
 - `--verify` 生成 `verify/layout_audit.json`，根据实际文字和图片位置提示大块留白。Agent 按 SKILL.md 主动检查全篇、调整单图尺寸或分页并重新渲染；审计不会自行改写内容，也不保证一次排版就最优。
 
+## 目录结构
+
 ```
-├── SKILL.md / README.md        # 项目说明与 Agent 工作流
+├── README.md / README.en.md    # 中英文说明，默认中文
+├── SKILL.md / SKILL.en.md      # 中英文 Agent 工作流
+├── examples/                  # 中英文 content.json 排版示例
 ├── docs/images/                # README 效果演示截图
 ├── run.py                      # CLI 入口（prep / docx 两阶段）
 ├── src/auto_paper_reading/     # 核心 Python 包（无 LLM API 依赖）

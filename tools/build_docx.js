@@ -46,6 +46,22 @@ const TEXT_WIDTH = PAGE_WIDTH - 2 * PAGE_MARGIN;
 let equationCounter = 0;
 let pageBreakPending = false;
 let reportLayout = {};
+let reportLanguage = "zh";
+const LABELS = {
+  zh: {
+    abstract: "摘要", notation: "符号表", unspecified: "原文未说明",
+    emptyNotation: "本篇无需单独列示核心符号，简单变量在正文随用随释。",
+    headers: ["符号", "中文含义", "类型／维度", "作用", "出处／适用范围"],
+    caption: "图注：", missingImage: "图片缺失",
+  },
+  en: {
+    abstract: "Abstract", notation: "Notation", unspecified: "Not specified in the paper",
+    emptyNotation: "No separate notation table is needed; simple variables are explained where they appear.",
+    headers: ["Symbol", "Meaning", "Type / shape", "Role", "Source / scope"],
+    caption: "Caption: ", missingImage: "Missing image",
+  },
+};
+let labels = LABELS.zh;
 
 function pageStartOptions() {
   const pageBreakBefore = pageBreakPending;
@@ -163,7 +179,7 @@ function equationParagraph(latex) {
     children: [
       new TextRun({ text: "\t" }),
       new TextRun({ text: MATH_MARK_S + String(latex).trim() + MATH_MARK_E }),
-      ...makeRuns(`\t（${equationCounter}）`, CN_BODY, S_BODY),
+      ...makeRuns(reportLanguage === "en" ? `\t(${equationCounter})` : `\t（${equationCounter}）`, CN_BODY, S_BODY),
     ],
   });
 }
@@ -213,7 +229,7 @@ function headingParagraph(text, level, numbered = true) {
     headingCounters[2] += 1;
   }
   let num;
-  if (level === 1) num = chineseChapterNumber(headingCounters[0]);
+  if (level === 1) num = reportLanguage === "en" ? String(headingCounters[0]) : chineseChapterNumber(headingCounters[0]);
   else if (level === 2) num = `${headingCounters[0]}.${headingCounters[1]}`;
   else num = `${headingCounters[0]}.${headingCounters[1]}.${headingCounters[2]}`;
   const fullText = numbered ? `${num} ${text}` : text;
@@ -285,25 +301,25 @@ function frontMatter(content) {
   const children = [];
   if (content.abstract !== undefined) {
     if (typeof content.abstract !== "string" || !content.abstract.trim()) {
-      throw new Error("abstract 必须为非空的中文讲解摘要文字");
+      throw new Error("abstract 必须为非空摘要文字 / must be a non-empty summary in the report language");
     }
-    children.push(headingParagraph("摘要", 1, false), ...textParagraphs(content.abstract));
+    children.push(headingParagraph(labels.abstract, 1, false), ...textParagraphs(content.abstract));
   }
   if (content.symbols !== undefined) {
     if (!Array.isArray(content.symbols)) throw new Error("symbols 必须为数组");
-    children.push(headingParagraph("符号表", 1, false));
+    children.push(headingParagraph(labels.notation, 1, false));
     if (!content.symbols.length) {
-      children.push(bodyParagraph("本篇无需单独列示核心符号，简单变量在正文随用随释。"));
+      children.push(bodyParagraph(labels.emptyNotation));
     } else {
       const rows = content.symbols.map(s => {
         if (!s || typeof s.symbol !== "string" || !s.symbol.trim() ||
             typeof s.meaning !== "string" || !s.meaning.trim()) {
           throw new Error("每个符号必须有非空的 symbol 和 meaning");
         }
-        return [s.symbol, s.meaning, s.shape ?? "原文未说明", s.role ?? "", s.source ?? ""];
+        return [s.symbol, s.meaning, s.shape ?? labels.unspecified, s.role ?? "", s.source ?? ""];
       });
       children.push(contentTable({
-        headers: ["符号", "中文含义", "类型／维度", "作用", "出处／适用范围"],
+        headers: labels.headers,
         rows, column_weights: [1, 1.8, 1.8, 2.4, 1.8],
       }));
     }
@@ -330,7 +346,7 @@ function positiveSize(value, fallback) {
 function figureParagraph(fig, contentPath, block = {}) {
   const imgPath = resolvePath(contentPath, fig && fig.path);
   if (!imgPath || !fs.existsSync(imgPath)) {
-    return bodyParagraph(`[图片缺失: ${fig ? fig.id : "unknown"}]`, { size: S_META });
+    return bodyParagraph(`[${labels.missingImage}: ${fig ? fig.id : "unknown"}]`, { size: S_META });
   }
   const ext = path.extname(imgPath).toLowerCase().replace(".", "") || "png";
   const size = fitSize(fig.width_in, fig.height_in,
@@ -361,7 +377,7 @@ function resolvePath(contentPath, p) {
 function captionParagraph(fig, note) {
   const paras = [];
   if (fig && fig.caption) {
-    paras.push(...textParagraphs(`图注：${fig.caption}`, {
+    paras.push(...textParagraphs(`${labels.caption}${fig.caption}`, {
       alignment: AlignmentType.CENTER, after: 60, size: S_META, keepLines: true,
     }));
   }
@@ -372,6 +388,11 @@ function captionParagraph(fig, note) {
 }
 
 function build(content, contentPath) {
+  reportLanguage = content.language === undefined ? "zh" : content.language;
+  if (!["zh", "en"].includes(reportLanguage)) {
+    throw new Error('language 必须是 / must be "zh" or "en"');
+  }
+  labels = LABELS[reportLanguage];
   const children = [];
   const figures = content.figures || [];
   headingCounters = [0, 0, 0]; // 每次构建重置编号
@@ -391,7 +412,7 @@ function build(content, contentPath) {
     );
   }
   const meta = content.meta || {};
-  const metaParts = [meta.journal, meta.year ? `${meta.year} 年` : "", meta.authors].filter(Boolean);
+  const metaParts = [meta.journal, meta.year ? `${meta.year}${reportLanguage === "zh" ? " 年" : ""}` : "", meta.authors].filter(Boolean);
   if (metaParts.length) {
     children.push(
       new Paragraph({
@@ -448,6 +469,7 @@ function build(content, contentPath) {
             color: "000000", // 字体统一黑色（含公式继承）
             font: { ascii: LATIN, eastAsia: CN_BODY, hAnsi: LATIN },
             size: S_BODY,
+            language: { value: reportLanguage === "en" ? "en-US" : "zh-CN" },
           },
         },
       },

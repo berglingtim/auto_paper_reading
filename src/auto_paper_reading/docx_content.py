@@ -1,6 +1,7 @@
 """content.json 的读写与规范化（docx 排版脚本与 SKILL.md 共用的中间格式）。
 
-新报告在顶层提供 abstract（非空中文摘要）和 symbols（符号对象数组）。
+language 为 zh（默认）或 en；Agent 按目标语言撰写内容，排版器不翻译正文。
+新报告在顶层提供 abstract（非空目标语言摘要）和 symbols（符号对象数组）。
 排版顺序为标题/元信息 → 摘要 → 符号表 → sections，前置部分不占正文标题编号。
 symbols 项：symbol、meaning 必填；shape、role、source 表示类型/维度、作用、出处/范围。
 只列核心、反复出现或易混淆的符号；简单临时变量就近解释。空数组表示无须集中列示。
@@ -8,7 +9,7 @@ symbols 项：symbol、meaning 必填；shape、role、source 表示类型/维�
 原生表格块：{"type":"table", "headers":["方法","核心"], "rows":[["A","描述"]],
 "column_weights":[1,3]}。每行与表头等长，权重可省略，单元格支持换行和行内公式。
 原生表格为黑白三线表：顶/底线 1.5pt，表头下线 0.75pt，全单元格水平/垂直居中。
-正文三级编号采用 一 / 1.1 / 1.1.1，前置标题不编号。
+中文三级编号采用 一 / 1.1 / 1.1.1，英文为 1 / 1.1 / 1.1.1，前置标题不编号。
 
 公式块使用 {"type": "equation", "latex": "y = Wx + b"}，不带分隔符或编号。
 排版器负责独立成行及全文连续编号；text/note 中 $...$ 为不编号的行内公式，
@@ -42,6 +43,9 @@ def normalize_content(content: dict, base_dir: str | Path | None = None) -> dict
     保持相对路径原样），保证 content.json 可随仓库迁移、跨机器使用。
     """
     base = Path(base_dir).resolve() if base_dir else None
+    language = content.setdefault("language", "zh")
+    if language not in ("zh", "en"):
+        raise ValueError('language 必须是 / must be "zh" or "en"')
     content.setdefault("figures", [])
     for f in content["figures"]:
         f.setdefault("caption", "")
