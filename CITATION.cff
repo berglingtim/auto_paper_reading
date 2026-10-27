@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use this toolkit in your research, please cite this software."
+type: software
+title: "auto_paper_reading: Bilingual paper-reading toolkit for AI agents"
+authors:
+  - name: berglingtim
+    website: "https://github.com/berglingtim"
+version: 0.4.2
+date-released: "2026-10-28"
+license: MIT
+repository-code: "https://github.com/berglingtim/auto_paper_reading"
+url: "https://github.com/berglingtim/auto_paper_reading"
+abstract: >-
+  An AI agent skill for researching papers, comparing baselines, explaining
+  figures and equations, and generating illustrated Chinese or English Word
+  reports. Agents author the content; local scripts parse, crop, typeset, and
+  verify it without calling an LLM API.
+keywords:
+  - research papers
+  - paper reading
+  - AI agents
+  - agent skills
+  - document generation
+  - bilingual

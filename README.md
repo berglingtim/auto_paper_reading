@@ -4,6 +4,8 @@
 
 **简体中文（默认）** · [English documentation](README.en.md)
 
+[版本与下载](https://github.com/berglingtim/auto_paper_reading/releases) · [MIT 许可证](LICENSE) · [软件引用信息](CITATION.cff)
+
 一个给 AI Agent 用的**论文阅读工具包（skill）**：把本仓库交给带视觉能力的 Agent
 （Claude Code / Codex / Qwen Code / Kimi Code 等），对它说一句「阅读 XXX 论文」，
 Agent 就会按 `SKILL.md` 工作流自动**搜索下载论文 → 解析裁剪关键图 → 视觉选图 →
@@ -214,3 +216,9 @@ python tools/verify_math.py "output/xxx/讲解_标题.docx"                # 指
 - WPS Office：仅 `.doc/.docx → PDF` 输入转换与 `--verify` 预览渲染
   （无头 `kwpsconvert word2pdf`，需显式 `--allow-wps` / `--verify` 才调用）
 - **不需要**：任何 LLM API key、OpenAI SDK、联网模型服务
+
+## 许可证与引用
+
+本项目的原创代码与文档采用 [MIT 许可证](LICENSE)。案例中引用的论文图表及其他第三方材料保留各自的版权与许可，来源见案例说明和报告参考文献。
+
+在研究中使用本工具包时，可通过仓库侧栏的 **Cite this repository** 获取引用格式，元数据见 [CITATION.cff](CITATION.cff)。它引用的是本工具包；引用论文内容时仍应引用对应原论文。

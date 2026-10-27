@@ -4,6 +4,8 @@
 
 **English** · [简体中文（默认 / default）](README.md)
 
+[Releases and downloads](https://github.com/berglingtim/auto_paper_reading/releases) · [MIT license](LICENSE) · [Software citation](CITATION.cff)
+
 A **paper-reading toolkit for AI agents**. Open this repository in a workspace with a vision-capable agent, such as Claude Code, Codex, Qwen Code, or Kimi Code, and ask it to explain a paper. The agent follows the workflow to **find the paper → parse it and crop figures → inspect the figures → investigate baselines and field challenges → write an illustrated explanation → build and check a DOCX report**.
 
 Reports can be written in **Chinese or English**. Chinese remains the default. The toolkit **does not call an LLM API or require an API key**: the agent does the research, visual analysis, and writing. The scripts handle parsing, cropping, typesetting, and checks.
@@ -173,3 +175,9 @@ package.json                  Node dependency: docx
 ```
 
 Run the existing tests with `python -m pytest tests/ -q` after installing pytest. The WPS conversion test needs the supported converter. Dependencies are PyMuPDF, python-docx, Pillow, lxml, and Node's `docx` package; no LLM SDK or API key is required.
+
+## License and citation
+
+Original project code and documentation are licensed under the [MIT license](LICENSE). Paper figures and other third-party material in the examples retain their respective copyrights and licenses; sources are listed in the case study notes and report references.
+
+Use **Cite this repository** in the GitHub sidebar to obtain a software citation, based on [CITATION.cff](CITATION.cff). This cites the toolkit; cite the original papers separately when using their findings.
