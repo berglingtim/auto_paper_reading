@@ -2,6 +2,8 @@
 import docx
 import pytest
 from docx.oxml.ns import qn
+from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT, WD_TABLE_ALIGNMENT
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 from auto_paper_reading.cli import _build_docx, _inject_math
 from auto_paper_reading.math_audit import audit_docx
@@ -23,7 +25,7 @@ def test_abstract_and_symbol_table_precede_body_without_consuming_heading_number
     d = docx.Document(_build_docx(content, tmp_path, tmp_path / 'front.docx'))
     texts = [p.text for p in d.paragraphs]
     assert texts[:3] == ['论文讲解', '摘要', content['abstract']]
-    assert texts[3:6] == ['符号表', '1 基础知识', '1.1 特征']
+    assert texts[3:6] == ['符号表', '一 基础知识', '1.1 特征']
     assert texts[-1].strip() == '（1）'
     body = list(d.element.body)
     assert body[4].tag == qn('w:tbl')
@@ -81,11 +83,11 @@ def test_invalid_front_matter_is_not_silently_omitted(tmp_path, extra):
 def test_empty_symbols_explains_absence_and_legacy_input_still_builds(tmp_path):
     d = docx.Document(_build_docx({'abstract': '无公式的定性研究。', 'symbols': []},
                                 tmp_path, tmp_path / 'empty.docx'))
-    assert any('未使用数学符号' in p.text for p in d.paragraphs)
+    assert any('简单变量在正文随用随释' in p.text for p in d.paragraphs)
     assert not d.tables
     d = docx.Document(_build_docx({'sections': [{'title': '方法', 'blocks': [
         {'type': 'text', 'text': '旧版正文'}]}]}, tmp_path, tmp_path / 'legacy.docx'))
-    assert [p.text for p in d.paragraphs] == ['1 方法', '旧版正文']
+    assert [p.text for p in d.paragraphs] == ['一 方法', '旧版正文']
 
 
 def test_math_in_nested_table_cells_is_injected_and_audited(tmp_path):
@@ -121,3 +123,54 @@ def test_inline_math_keeps_cell_and_caption_font_sizes(tmp_path):
     assert set(note._p.xpath('.//m:r/w:rPr/w:sz/@w:val')) == {'21'}
     body = next(p for p in d.paragraphs if p.text == '正文 ')
     assert set(body._p.xpath('.//m:r/w:rPr/w:sz/@w:val')) == {'24'}
+
+
+def test_all_tables_are_centered_black_and_white_three_line_tables(tmp_path):
+    content = {'symbols': [{'symbol': '$Q$', 'meaning': '查询', 'shape': '矩阵'}],
+               'sections': [{'title': '对比', 'blocks': [
+                   {'type': 'table', 'headers': ['方法', '核心'],
+                    'rows': [['Baseline', '多行\n机制说明'], ['本文', '修改内容']]},
+               ]}]}
+    d = docx.Document(_build_docx(content, tmp_path, tmp_path / 'style.docx'))
+    assert len(d.tables) == 2
+    for table in d.tables:
+        assert table.alignment == WD_TABLE_ALIGNMENT.CENTER
+        borders = table._tbl.xpath('./w:tblPr/w:tblBorders')[0]
+        for edge in ['top', 'bottom']:
+            line = borders.find(qn(f'w:{edge}'))
+            assert line.get(qn('w:val')) == 'single'
+            assert line.get(qn('w:color')) == '000000'
+            assert line.get(qn('w:sz')) == '12'  # 1.5 pt
+        for edge in ['left', 'right', 'insideH', 'insideV']:
+            assert borders.find(qn(f'w:{edge}')).get(qn('w:val')) == 'nil'
+        for row_index, row in enumerate(table.rows):
+            for cell in row.cells:
+                assert cell.vertical_alignment == WD_CELL_VERTICAL_ALIGNMENT.CENTER
+                assert all(p.alignment == WD_ALIGN_PARAGRAPH.CENTER for p in cell.paragraphs)
+                assert all(fill == 'FFFFFF' for fill in cell._tc.xpath('.//w:shd/@w:fill'))
+                assert all(color == '000000' for color in cell._tc.xpath('.//w:color/@w:val'))
+                middle = cell._tc.xpath('./w:tcPr/w:tcBorders/w:bottom')
+                if row_index == 0:
+                    assert middle[0].get(qn('w:sz')) == '6'  # 0.75 pt
+                    assert middle[0].get(qn('w:val')) == 'single'
+                    assert middle[0].get(qn('w:color')) == '000000'
+                else:
+                    assert not middle or middle[0].get(qn('w:val')) == 'nil'
+
+
+def test_chinese_chapter_numbers_keep_arabic_subsections_and_reset_each_chapter(tmp_path):
+    content = {'abstract': '前置摘要。', 'symbols': [], 'sections': [
+        {'title': '章名', 'blocks': [
+            {'type': 'heading', 'level': 2, 'text': '子节'},
+            {'type': 'heading', 'level': 3, 'text': '细节'},
+            {'type': 'text', 'text': '内容'},
+        ]} for _ in range(21)
+    ]}
+    d = docx.Document(_build_docx(content, tmp_path, tmp_path / 'headings.docx'))
+    headings = [p.text for p in d.paragraphs if p.style and p.style.style_id.startswith('Heading')]
+    assert headings[:5] == ['摘要', '符号表', '一 章名', '1.1 子节', '1.1.1 细节']
+    assert headings[5:8] == ['二 章名', '2.1 子节', '2.1.1 细节']
+    assert headings[29:32] == ['十 章名', '10.1 子节', '10.1.1 细节']
+    assert headings[32:35] == ['十一 章名', '11.1 子节', '11.1.1 细节']
+    assert headings[-6:] == ['二十 章名', '20.1 子节', '20.1.1 细节',
+                             '二十一 章名', '21.1 子节', '21.1.1 细节']

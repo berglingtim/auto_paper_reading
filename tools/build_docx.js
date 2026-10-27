@@ -182,8 +182,17 @@ function textParagraphs(text, opts = {}) {
   return paras;
 }
 
-// 三级标题自动编号状态（1 / 1.1 / 1.1.1）
+// 三级标题自动编号状态（一 / 1.1 / 1.1.1），内部章节计数仍用整数。
 let headingCounters = [0, 0, 0];
+
+function chineseChapterNumber(n, leading = true) {
+  if (n < 10) return "零一二三四五六七八九"[n];
+  const [base, unit] = [[100000000, "亿"], [10000, "万"], [1000, "千"],
+    [100, "百"], [10, "十"]].find(([value]) => n >= value);
+  const prefix = leading && base === 10 && n < 20 ? "" : chineseChapterNumber(Math.floor(n / base));
+  const rest = n % base;
+  return prefix + unit + (rest ? (rest < base / 10 ? "零" : "") + chineseChapterNumber(rest, false) : "");
+}
 
 function headingParagraph(text, level, numbered = true) {
   const map = {
@@ -204,7 +213,7 @@ function headingParagraph(text, level, numbered = true) {
     headingCounters[2] += 1;
   }
   let num;
-  if (level === 1) num = String(headingCounters[0]);
+  if (level === 1) num = chineseChapterNumber(headingCounters[0]);
   else if (level === 2) num = `${headingCounters[0]}.${headingCounters[1]}`;
   else num = `${headingCounters[0]}.${headingCounters[1]}.${headingCounters[2]}`;
   const fullText = numbered ? `${num} ${text}` : text;
@@ -218,7 +227,7 @@ function headingParagraph(text, level, numbered = true) {
   });
 }
 
-/** 可编辑表格；表头跨页重复，列宽和单元格宽度保持一致。 */
+/** 黑白三线表；单元格水平/垂直居中，表头跨页重复。边框 size 单位为 1/8 pt。 */
 function contentTable(block) {
   const { headers, rows } = block;
   if (!Array.isArray(headers) || !headers.length ||
@@ -234,13 +243,16 @@ function contentTable(block) {
   const sum = weights.reduce((a, b) => a + b, 0);
   const widths = weights.map(w => Math.floor(TEXT_WIDTH * w / sum));
   widths[widths.length - 1] += TEXT_WIDTH - widths.reduce((a, b) => a + b, 0);
-  const border = { style: BorderStyle.SINGLE, size: 4, color: "D9D9D9" };
+  const outerLine = { style: BorderStyle.SINGLE, size: 12, color: "000000" };
+  const headerLine = { style: BorderStyle.SINGLE, size: 6, color: "000000" };
+  const noLine = { style: BorderStyle.NIL };
   return new Table({
+    alignment: AlignmentType.CENTER,
     width: { size: TEXT_WIDTH, type: WidthType.DXA },
     columnWidths: widths,
     layout: TableLayoutType.FIXED,
-    borders: { top: border, bottom: border, left: border, right: border,
-      insideHorizontal: border, insideVertical: border },
+    borders: { top: outerLine, bottom: outerLine, left: noLine, right: noLine,
+      insideHorizontal: noLine, insideVertical: noLine },
     rows: [headers, ...rows].map((row, rowIndex) => new TableRow({
       tableHeader: rowIndex === 0,
       cantSplit: true,
@@ -254,12 +266,13 @@ function contentTable(block) {
           width: { size: widths[columnIndex], type: WidthType.DXA },
           verticalAlign: VerticalAlign.CENTER,
           margins: { top: 100, bottom: 100, left: 100, right: 100 },
-          shading: { type: ShadingType.CLEAR, fill: rowIndex === 0 ? "F2F2F2" : "FFFFFF" },
+          shading: { type: ShadingType.CLEAR, fill: "FFFFFF" },
+          borders: rowIndex === 0 ? { bottom: headerLine } : undefined,
           children: text.split(/\r?\n/).map(line => new Paragraph({
             // 分页标记只由第一格的第一段消耗；单元格不使用正文首行缩进。
             ...pageStartOptions(),
-            alignment: rowIndex === 0 || columnIndex === 0 ? AlignmentType.CENTER : AlignmentType.LEFT,
-            spacing: { after: 40 },
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 0, after: 0 },
             children: makeRuns(line, CN_BODY, S_TABLE, rowIndex === 0),
           })),
         });
@@ -280,7 +293,7 @@ function frontMatter(content) {
     if (!Array.isArray(content.symbols)) throw new Error("symbols 必须为数组");
     children.push(headingParagraph("符号表", 1, false));
     if (!content.symbols.length) {
-      children.push(bodyParagraph("本文讲解未使用数学符号。"));
+      children.push(bodyParagraph("本篇无需单独列示核心符号，简单变量在正文随用随释。"));
     } else {
       const rows = content.symbols.map(s => {
         if (!s || typeof s.symbol !== "string" || !s.symbol.trim() ||
