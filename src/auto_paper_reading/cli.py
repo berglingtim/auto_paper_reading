@@ -51,12 +51,17 @@ def _inject_math(docx_path: Path) -> int:
     公式由 WPS/Word 打开时原生渲染；全部在 python-docx 层完成，不调用任何 Office 软件。
     """
     import docx as pydocx
+    from copy import deepcopy
+    from docx.oxml.ns import qn
+    from docx.text.paragraph import Paragraph
 
-    from .omml import MATH_MARK_E, MATH_MARK_S, latex_to_omml
+    from .omml import MATH_MARK_E, MATH_MARK_S, M_NS, latex_to_omml
 
     d = pydocx.Document(str(docx_path))
     count = 0
-    for para in d.paragraphs:
+    # Document.paragraphs 不含表格；直接遍历正文 XML 也覆盖嵌套单元格，且不重复处理合并单元格。
+    for element in d.element.body.xpath('.//w:p'):
+        para = Paragraph(element, d)
         for run in list(para.runs):
             text = run.text or ""
             if not (text.startswith(MATH_MARK_S) and MATH_MARK_E in text):
@@ -66,6 +71,11 @@ def _inject_math(docx_path: Path) -> int:
                 omml = latex_to_omml(latex)
             except Exception as e:
                 raise ValueError(f"公式解析失败，禁止交付 {latex!r}: {e}") from e
+            # OMML 替换原 run 后不会继承其直接字号；保留表格 9pt、图后说明 10.5pt 等。
+            size = run._r.find('./' + qn('w:rPr') + '/' + qn('w:sz'))
+            if size is not None:
+                for math_run in omml.findall('.//' + f'{{{M_NS}}}r'):
+                    math_run.find(qn('w:rPr')).append(deepcopy(size))
             run._r.addprevious(omml)
             run._r.getparent().remove(run._r)
             count += 1

@@ -1,5 +1,12 @@
 """content.json 的读写与规范化（docx 排版脚本与 SKILL.md 共用的中间格式）。
 
+新报告在顶层提供 abstract（非空中文摘要）和 symbols（符号对象数组）。
+排版顺序为标题/元信息 → 摘要 → 符号表 → sections，前置部分不占正文标题编号。
+symbols 项：symbol、meaning 必填；shape、role、source 表示类型/维度、作用、出处/范围。
+空数组表示讲解未使用数学符号；旧输入省略前置字段仍兼容，不自动生成研究内容。
+原生表格块：{"type":"table", "headers":["方法","核心"], "rows":[["A","描述"]],
+"column_weights":[1,3]}。每行与表头等长，权重可省略，单元格支持换行和行内公式。
+
 公式块使用 {"type": "equation", "latex": "y = Wx + b"}，不带分隔符或编号。
 排版器负责独立成行及全文连续编号；text/note 中 $...$ 为不编号的行内公式，
 $$...$$ 为独立编号公式。

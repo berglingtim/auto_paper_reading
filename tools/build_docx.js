@@ -27,6 +27,14 @@ const {
   HeadingLevel,
   AlignmentType,
   TabStopType,
+  Table,
+  TableRow,
+  TableCell,
+  WidthType,
+  TableLayoutType,
+  BorderStyle,
+  ShadingType,
+  VerticalAlign,
 } = require("docx");
 
 const MAX_W_IN = 6.2; // A4 版心宽度约为 6.27in
@@ -104,7 +112,7 @@ function makeRuns(text, cnFont, size, allBold = false) {
   parts.forEach((part, idx) => {
     if (!part) return;
     if (idx % 2 === 1) {
-      runs.push(new TextRun({ text: MATH_MARK_S + part + MATH_MARK_E }));
+      runs.push(new TextRun({ text: MATH_MARK_S + part + MATH_MARK_E, size }));
       return;
     }
     const subs = part.split("**");
@@ -177,7 +185,7 @@ function textParagraphs(text, opts = {}) {
 // 三级标题自动编号状态（1 / 1.1 / 1.1.1）
 let headingCounters = [0, 0, 0];
 
-function headingParagraph(text, level) {
+function headingParagraph(text, level, numbered = true) {
   const map = {
     1: { size: S_H1, heading: HeadingLevel.HEADING_1 },
     2: { size: S_H2, heading: HeadingLevel.HEADING_2 },
@@ -185,21 +193,21 @@ function headingParagraph(text, level) {
   };
   const cfg = map[level] || map[1];
   // 自动编号
-  if (level === 1) {
+  if (numbered && level === 1) {
     headingCounters[0] += 1;
     headingCounters[1] = 0;
     headingCounters[2] = 0;
-  } else if (level === 2) {
+  } else if (numbered && level === 2) {
     headingCounters[1] += 1;
     headingCounters[2] = 0;
-  } else if (level === 3) {
+  } else if (numbered && level === 3) {
     headingCounters[2] += 1;
   }
   let num;
   if (level === 1) num = String(headingCounters[0]);
   else if (level === 2) num = `${headingCounters[0]}.${headingCounters[1]}`;
   else num = `${headingCounters[0]}.${headingCounters[1]}.${headingCounters[2]}`;
-  const fullText = `${num} ${text}`;
+  const fullText = numbered ? `${num} ${text}` : text;
   return new Paragraph({
     ...pageStartOptions(),
     keepNext: true,
@@ -208,6 +216,86 @@ function headingParagraph(text, level) {
     spacing: { before: 360, after: 200 },
     children: makeRuns(fullText, CN_HEAD, cfg.size),
   });
+}
+
+/** 可编辑表格；表头跨页重复，列宽和单元格宽度保持一致。 */
+function contentTable(block) {
+  const { headers, rows } = block;
+  if (!Array.isArray(headers) || !headers.length ||
+      !headers.every(h => typeof h === "string" && h.trim()) ||
+      !Array.isArray(rows) || rows.some(r => !Array.isArray(r) || r.length !== headers.length)) {
+    throw new Error("表格必须有非空 headers，且 rows 每行列数与表头一致");
+  }
+  const weights = block.column_weights ?? headers.map(() => 1);
+  if (!Array.isArray(weights) || weights.length !== headers.length ||
+      !weights.every(w => typeof w === "number" && Number.isFinite(w) && w > 0)) {
+    throw new Error("column_weights 必须为与表头等长的正数数组");
+  }
+  const sum = weights.reduce((a, b) => a + b, 0);
+  const widths = weights.map(w => Math.floor(TEXT_WIDTH * w / sum));
+  widths[widths.length - 1] += TEXT_WIDTH - widths.reduce((a, b) => a + b, 0);
+  const border = { style: BorderStyle.SINGLE, size: 4, color: "D9D9D9" };
+  return new Table({
+    width: { size: TEXT_WIDTH, type: WidthType.DXA },
+    columnWidths: widths,
+    layout: TableLayoutType.FIXED,
+    borders: { top: border, bottom: border, left: border, right: border,
+      insideHorizontal: border, insideVertical: border },
+    rows: [headers, ...rows].map((row, rowIndex) => new TableRow({
+      tableHeader: rowIndex === 0,
+      cantSplit: true,
+      children: row.map((value, columnIndex) => {
+        if (typeof value !== "string" && typeof value !== "number") {
+          throw new Error("表格单元格必须为文字或数字");
+        }
+        const text = String(value);
+        if (text.includes("$$")) throw new Error("表格内请用 $...$ 行内公式，独立公式放在表格外");
+        return new TableCell({
+          width: { size: widths[columnIndex], type: WidthType.DXA },
+          verticalAlign: VerticalAlign.CENTER,
+          margins: { top: 100, bottom: 100, left: 100, right: 100 },
+          shading: { type: ShadingType.CLEAR, fill: rowIndex === 0 ? "F2F2F2" : "FFFFFF" },
+          children: text.split(/\r?\n/).map(line => new Paragraph({
+            // 分页标记只由第一格的第一段消耗；单元格不使用正文首行缩进。
+            ...pageStartOptions(),
+            alignment: rowIndex === 0 || columnIndex === 0 ? AlignmentType.CENTER : AlignmentType.LEFT,
+            spacing: { after: 40 },
+            children: makeRuns(line, CN_BODY, S_TABLE, rowIndex === 0),
+          })),
+        });
+      }),
+    })),
+  });
+}
+
+function frontMatter(content) {
+  const children = [];
+  if (content.abstract !== undefined) {
+    if (typeof content.abstract !== "string" || !content.abstract.trim()) {
+      throw new Error("abstract 必须为非空的中文讲解摘要文字");
+    }
+    children.push(headingParagraph("摘要", 1, false), ...textParagraphs(content.abstract));
+  }
+  if (content.symbols !== undefined) {
+    if (!Array.isArray(content.symbols)) throw new Error("symbols 必须为数组");
+    children.push(headingParagraph("符号表", 1, false));
+    if (!content.symbols.length) {
+      children.push(bodyParagraph("本文讲解未使用数学符号。"));
+    } else {
+      const rows = content.symbols.map(s => {
+        if (!s || typeof s.symbol !== "string" || !s.symbol.trim() ||
+            typeof s.meaning !== "string" || !s.meaning.trim()) {
+          throw new Error("每个符号必须有非空的 symbol 和 meaning");
+        }
+        return [s.symbol, s.meaning, s.shape ?? "原文未说明", s.role ?? "", s.source ?? ""];
+      });
+      children.push(contentTable({
+        headers: ["符号", "中文含义", "类型／维度", "作用", "出处／适用范围"],
+        rows, column_weights: [1, 1.8, 1.8, 2.4, 1.8],
+      }));
+    }
+  }
+  return children;
 }
 
 function fitSize(widthIn, heightIn, maxHeightIn, maxWidthIn) {
@@ -301,6 +389,9 @@ function build(content, contentPath) {
     );
   }
 
+  // ---- 摘要与符号表始终在正文之前，不占用正文标题编号 ----
+  children.push(...frontMatter(content));
+
   // ---- 正文 ----
   for (const sec of content.sections || []) {
     if (sec.page_break_before) pageBreakPending = true;
@@ -323,6 +414,8 @@ function build(content, contentPath) {
       }
       if (block.type === "equation") {
         children.push(equationParagraph(block.latex || block.text || ""));
+      } else if (block.type === "table") {
+        children.push(contentTable(block));
       } else if (block.type === "figure") {
         const fig = figures.find((f) => f.id === block.fig_id) || null;
         children.push(figureParagraph(fig, contentPath, block));
