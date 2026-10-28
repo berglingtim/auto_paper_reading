@@ -23,8 +23,8 @@ Run from the repository root after installing the Python and Node dependencies l
 # Build both DOCX files with OMML injection and math checks; no office app required
 python examples/build.py
 
-# 使用已支持的 Windows WPS 无头后端生成预览
-# Render previews using the supported headless Windows WPS backend
+# 使用免费 LibreOffice 无头后端生成预览（需先安装）
+# Render previews with free LibreOffice headless (install it first)
 python examples/build.py --verify
 
 # 检查本次输出的确切文件 / Check the exact generated files
@@ -32,9 +32,9 @@ python tools/verify_math.py "output/examples/zh/讲解_排版示例.docx"
 python tools/verify_math.py "output/examples/en/Explanation_Layout Example.docx"
 ```
 
-可用 `--out output/my-examples` 指定其他输出位置。生成文件保存在忽略目录 `output/`。
+可用 `--out output/my-examples` 指定其他输出位置，`--pdf-backend wps` 显式选择可选的 WPS 后端。生成文件保存在忽略目录 `output/`。
 `--verify` 之后仍须逐页看图；仅生成 DOCX 或通过结构检查不代表视觉检查完成。
 
-Use `--out output/my-examples` for another output root. Generated files stay in ignored `output/`.
+Use `--out output/my-examples` for another output root, or `--pdf-backend wps` to explicitly select the optional WPS backend. Generated files stay in ignored `output/`.
 After `--verify`, inspect every preview page. A generated DOCX or passing structural checks alone
 does not establish correct visual layout.

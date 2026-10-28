@@ -52,8 +52,8 @@ Retry another source if needed; report the limitation if no suitable copy is ava
 ```bash
 python run.py papers/paper.pdf --stage prep --out output/en --language en
 
-# Word input requires explicit headless WPS permission via this flag.
-python run.py papers/paper.docx --stage prep --out output/en --language en --allow-wps
+# Word input uses free LibreOffice headless; install LibreOffice first.
+python run.py papers/paper.docx --stage prep --out output/en --language en
 ```
 
 Outputs include `output/en/paper/paper.json` (metadata, text, and figure coordinates) and `output/en/paper/figures/` (candidate crops).
@@ -179,7 +179,9 @@ python run.py papers/paper.pdf --stage docx --out output/en --language en --veri
 python tools/verify_math.py "output/en/paper/Explanation_Paper Title.docx"
 ```
 
-Use the exact generated filename. Without `--verify`, the build only performs structural and math checks. The current preview/Word-input backend is Windows WPS, using **headless `kwpsconvert.exe word2pdf`** or its compatible `wpscli.exe` entry point. The workflow must not launch `wps.exe`, open the GUI, or change file associations. Only explicit `--allow-wps` and `--verify` enable these two conversion uses. Other office applications, international WPS builds, and macOS/Linux rendering have not been validated.
+Use the exact generated filename. Without `--verify`, the build only performs structural and math checks. Word input conversion and previews default to **LibreOffice headless**, using an isolated profile per conversion. Install the free application or set `LIBREOFFICE_PATH` as described in [rendering support](README.en.md#rendering-support); Python dependencies alone do not provide the converter. Windows conversion has been tested; actual macOS/Linux rendering has not yet been validated.
+
+Only an explicit `--pdf-backend wps` selects the optional headless WPS converter; `--allow-wps` remains its legacy alias. Never silently fall back to WPS. Do not open an office GUI or change file associations. A failed requested preview returns a nonzero exit status and retains the DOCX; do not substitute old PDFs, previews, or audits for the failed run. Changing the renderer, fonts, or platform requires new page-by-page inspection and may require figure-size or pagination adjustments.
 
 If no supported converter is available, report that visual verification remains incomplete. A generated DOCX or a successful structural check does not establish a visually verified deliverable. Check warnings even when the CLI returns a generated path.
 
@@ -206,8 +208,8 @@ Explain the paper conversationally in the requested language, beginning with its
 
 | Symptom | Action |
 |---|---|
-| Word input needs `--allow-wps` | Use the explicit flag for the supported headless conversion workflow. |
-| Converter not found | Verify the installed Windows converter or set `WPS_CONVERT` to its actual path. Do not substitute GUI automation. |
+| LibreOffice not found | Install free LibreOffice Writer/Math or set `LIBREOFFICE_PATH` to `soffice.com` on Windows or `soffice` on macOS/Linux. |
+| Conversion failed | Check the input and converter error; do not reuse an old PDF. For optional WPS, explicitly select `--pdf-backend wps` and set `WPS_CONVERT` if needed. Do not substitute GUI automation. |
 | Security software blocks conversion | Report the error; do not operate its settings. |
 | Scanned PDF | Explain the missing text layer and discuss OCR if needed. |
 | Poor crops | Inspect the full page and recrop the actual figure region. |

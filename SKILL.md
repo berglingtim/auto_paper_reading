@@ -36,8 +36,8 @@ description: >
 - 中文一级标题为“一、二、三……”，英文为“1、2、3……”；二/三级均用 `1.1 / 1.1.1`。
   英文自动标签为 Abstract / Notation，公式编号为 `(1)`，文件名前缀为 `Explanation_`；
   中文保持摘要 / 符号表、`（1）` 与 `讲解_`。报告结构、黑白三线表及双向居中标准一致。
-- Word 输入转换与完整渲染检查目前只验证了 Windows WPS 无头后端；双语不等于跨平台支持。
-  缺少转换器时可生成 DOCX，但应如实报告视觉检查未完成，不将国际版 WPS 或其他办公软件视为已验证后端。
+- Word 输入转换与预览默认使用免费开源的 LibreOffice；WPS 仅为显式可选后端。安装与实际验证平台见 [README](README.md#pdf-转换后端)。
+  缺少转换器时可生成 DOCX，但应如实报告视觉检查未完成；双语和路径查找支持不等于每个平台的渲染都已验证。
 
 ## 执行总览
 
@@ -51,7 +51,7 @@ description: >
   ↓ ③ 撰写讲解        output/<论文名>/content.json（摘要 → 符号表 → 五部分正文）
   ↓ ④ 生成 docx       python run.py <paper> --stage docx --out output/<论文名>/
   ↓ ⑤ 校验排版        渲染 PDF/图片检查
-  ↓ ⑥ 交付            对话中讲解 + 告知 docx 路径（用户用 WPS 打开）
+  ↓ ⑥ 交付            对话中讲解 + 告知 docx 路径（用户选择兼容办公软件打开）
 ```
 
 ## Step 0 搜索并准备论文
@@ -75,7 +75,7 @@ description: >
    python -c "import fitz; d=fitz.open('papers/xxx.pdf'); print(len(d),'pages'); print(d[0].get_text()[:200])"
    ```
    能打印出页数与正文才算成功；否则换来源重试，仍不行则向用户报告。
-5. 若输入是 `.doc` / `.docx`，无需手工转换，`run.py` 会用 WPS 自动转 PDF。
+5. 若输入是 `.doc` / `.docx`，无需手工转换，`run.py` 默认调用 LibreOffice 无头转 PDF。
 
 ## Step 1 解析与裁剪
 
@@ -83,8 +83,9 @@ description: >
 # PDF 输入：无需任何额外授权
 python run.py papers/xxx.pdf --stage prep --out output/xxx
 
-# .doc / .docx 输入：需要显式 --allow-wps（调用 WPS 无头转换 kwpsconvert.exe word2pdf）
-python run.py papers/xxx.docx --stage prep --out output/xxx --allow-wps
+# .doc / .docx 输入：默认 LibreOffice 无头转换，需先安装 LibreOffice
+python run.py papers/xxx.docx --stage prep --out output/xxx
+# 仅在用户需要已有 WPS 后端时加 --pdf-backend wps；--allow-wps 为兼容别名
 ```
 
 ⚠️ **修改范围红线**：本工作流只允许修改/读写本仓库目录（即 Agent 当前打开的工作区）
@@ -244,7 +245,7 @@ pix.save("output/xxx/figures/fig_XX_pN.png")
 - **独立公式必须单独成行并编号**：推荐使用 `{"type":"equation","latex":"y = Wx + b"}`；不写 `$` 分隔符、不手工加编号。排版器自动将公式居中，右侧按全文出现顺序标为（1）、（2）……（英文为 (1)、(2)……），跨章节连续编号。
 - 正文或图后讲解中的 `$...$` 作为行内公式，保留在句内且不编号；`$$...$$`（可跨行）拆为独立编号公式，保留前后文字。需要单独展示的完整等式推荐写成 equation 块；句内变量、上下标与数学表达式也应使用 `$...$`，不要写成带下划线的普通文本。
 - 文本中用 `**术语**` 标记加粗（仅用于专业名词/需强调处，如 **IAPL**、**CLIP**）。
-- 文本中用 `$...$` 包裹 **LaTeX 公式**：生成 docx 时自动转为 OMML 公式对象，由 **WPS 打开时原生渲染**（非图片、非纯文本）。支持上下标、\frac、\sum/\prod、\sqrt、\left...\right、希腊字母、\mathbb、\log 等常用子集（见 `src/auto_paper_reading/omml.py`）。示例：`$P_i^{(j)} = \alpha^{(j)} \odot P_o^{(j-1)} + T^{(j)}$`。
+- 文本中用 `$...$` 包裹 **LaTeX 公式**：生成 docx 时自动转为可编辑的 OMML 公式对象（非图片、非纯文本），由兼容办公软件渲染。支持上下标、\frac、\sum/\prod、\sqrt、\left...\right、希腊字母、\mathbb、\log 等常用子集（见 `src/auto_paper_reading/omml.py`）。示例：`$P_i^{(j)} = \alpha^{(j)} \odot P_o^{(j-1)} + T^{(j)}$`。
 - `{"type":"heading","level":2|3,"text":"..."}` 可在部分内加二级/三级小标题。**标题编号自动生成**：中文一级=一、二、三……，英文一级=1、2、3……，二级=1.1、2.1……，三级=1.1.1、2.1.1……；content.json 中**只写标题文字、不要写编号**（写编号会重复）。
 - **建议用足三级标题**（一 / 1.1 / 1.1.1）细分讲解，避免大段文字混在一起；方法部分按组件/模块拆二级、三级，变换过程按步骤拆三级。
 
@@ -365,11 +366,13 @@ python run.py papers/xxx.pdf --stage docx --out output/xxx --verify
 # 渲染 output/xxx/verify/page_*.png，用读图工具逐页查看
 ```
 
-⚠️ **WPS 使用红线**：
-- 全流程只允许调用 **无头的 `kwpsconvert.exe word2pdf`**（命令行转换，不弹窗），
-  仅用于两处：`.doc/.docx` 输入转换、显式 `--verify` 的预览渲染。
-- **绝不**调用 `wps.exe` 打开 GUI、绝不自动用 WPS 打开/处理输出文件。
-- 生成 docx 后由用户自己在 WPS 中打开查看（项目不做任何 WPS 文件关联操作）。
+**转换后端与边界**：
+- 默认调用 **LibreOffice 无头模式**，每次转换使用独立配置目录；仅用于 `.doc/.docx` 输入转换和显式 `--verify` 的预览。
+- `--pdf-backend wps` 显式选择可选的 `kwpsconvert.exe word2pdf`；`--allow-wps` 是兼容别名。不得因 LibreOffice 缺失或失败而静默回退到 WPS。
+- 只调用无头命令，不打开办公软件 GUI、不修改文件关联。生成文件由用户选择软件查看。
+- 缺少 LibreOffice 时按 README 安装或设置 `LIBREOFFICE_PATH`；不要声称只装 Python 依赖就能转 PDF。
+- 预览失败会返回非零状态并保留 DOCX；必须处理错误，不能以旧 PDF、旧预览图或旧审计代替本次检查。
+- 换转换器、字体或平台后重新逐页检查，必要时调整内容文件的图尺寸与分页；不能假定与原软件分页一致。
 
 用读图工具检查预览图时重点看：摘要和符号表在正文之前、原生表格为黑白三线表且粗细有别、
 所有单元格水平/垂直居中、表格不截断且跨页重复表头、标题编号符合所选语言、
@@ -409,15 +412,15 @@ python run.py papers/xxx.pdf --stage docx --out output/xxx --verify
    发现渲染问题 → 修 content.json 或 omml.py → 重新生成 → 再验证，直到全部通过才交付。
 1. **对话中讲解**：先简述摘要，再按五部分结构，用口语化但专业的方式把论文讲给用户听，
    说明配图内容与讲解的对应关系（验收标准：用户满意）。
-2. 把输出 docx 的路径告知用户（用户用 WPS 打开）。
+2. 把输出 docx 的路径告知用户，供其用兼容办公软件打开。
 
 ## 常见问题
 
 | 现象 | 处理 |
 |---|---|
-| `.doc/.docx` 报"需要 --allow-wps" | 该格式必须经 WPS 无头转换才能解析；确认后显式加 `--allow-wps` 重跑 |
-| `.doc/.docx` 转换失败 | 确认 WPS 已安装；或设置环境变量 `WPS_CONVERT` 指向 `kwpsconvert.exe`（仅无头转换，不弹窗） |
-| 需要渲染预览图 | `python run.py ... --stage docx --verify`（显式开启，才调用 WPS 无头转换） |
+| 未找到 LibreOffice | 安装免费 LibreOffice（Writer/Math），或将 `LIBREOFFICE_PATH` 指向 `soffice.com`（Windows）/ `soffice`（macOS/Linux） |
+| `.doc/.docx` 转换失败 | 核对输入文件与转换器错误；不复用旧 PDF。可选 WPS 需显式 `--pdf-backend wps`，路径用 `WPS_CONVERT` 指定 |
+| 需要渲染预览图 | `python run.py ... --stage docx --verify`，默认 LibreOffice；失败返回非零状态，DOCX 保留 |
 | 标题出现蓝色/主题色 | 内置 Heading 样式自带主题蓝；需在 build_docx.js 中给 run 显式 `color: 000000` 并覆盖标题样式（v0.1.8 已处理，勿回退） |
 | 安全软件误报 | 360 等对"办公软件自动化"可能报警（误报），是否放行由用户在安全软件界面自行决定 |
 | 扫描版 PDF（无文字层） | 提取不到图注/文本，向用户说明并询问是否需要 OCR |

@@ -1,7 +1,7 @@
 r"""LaTeX → OMML（Office Math Markup Language）转换器。
 
 把 content.json 文本中 `$...$` 包裹的 LaTeX 公式转换为 OMML 元素，
-嵌入 docx 后由 WPS/Word 原生渲染为公式（非图片、非纯文本）。
+嵌入 docx 后由兼容办公软件原生渲染为公式（非图片、非纯文本）。
 
 要点：
 - OMML 没有 <m:group> 元素（WPS 会丢弃其内容），因此 `{...}` 组一律

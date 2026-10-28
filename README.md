@@ -27,6 +27,12 @@ Agent 就会按 `SKILL.md` 工作流自动**搜索下载论文 → 解析裁剪�
 
 完整案例随 **v0.4.1** 发布；`examples/` 中的短示例用于演示内容格式与排版。
 
+## v0.5.0 免费开源 PDF 转换
+
+- `.doc/.docx` 输入转换和 `--verify` 预览默认使用 **LibreOffice 无头模式**，无需 WPS、Microsoft Word 或付费服务。
+- 转换使用独立临时目录与用户配置；检查新 PDF 有效后才替换结果，失败保留旧 PDF。请求预览但转换失败时，命令返回非零状态，已生成的 DOCX 保留。
+- WPS 仅在显式指定 `--pdf-backend wps` 时启用；旧参数 `--allow-wps` 保留为兼容别名，不会自动回退到 WPS。
+
 ## v0.4.0 中英文双语
 
 - README 默认展示中文，顶部按钮可切换[完整英文说明](README.en.md)；Agent 工作流也有[英文版](SKILL.en.md)。
@@ -72,9 +78,41 @@ python run.py papers/paper.pdf --stage docx --out output/en --language en --veri
 实际工作目录为 `<--out>/<论文文件名（不含扩展名）>/`。DOCX 阶段未传 `--language` 时，
 优先读取 `content.json.language`，再默认中文；英文文件名为 `Explanation_<论文标题>.docx`。
 
-PDF 解析和 DOCX 生成不依赖办公软件；**Word 输入转换与完整渲染检查目前只实现了 Windows WPS 无头后端**。
-未安装相应转换程序时仍可生成 DOCX，但不能声称通过了完整视觉检查。
-目前不宣称国际版 WPS、Microsoft Word、LibreOffice 或 macOS/Linux 渲染已验证兼容。
+PDF 解析和 DOCX 生成不依赖办公软件；Word 输入转换与 `--verify` 预览默认使用免费的 **LibreOffice**。
+缺少转换器时仍可生成 DOCX，但不能声称完成了视觉检查。安装与选择方式如下。
+
+### PDF 转换后端
+
+Windows / macOS：安装 [LibreOffice](https://www.libreoffice.org/download/)，包含 Writer 与 Math。
+Ubuntu / Debian 可用：
+
+```bash
+sudo apt install libreoffice-writer libreoffice-math fonts-noto-cjk fonts-liberation
+```
+
+程序自动查找 PATH 和常见安装目录。自定义路径时，`LIBREOFFICE_PATH` 指向可执行文件：
+
+```powershell
+# Windows PowerShell；通常不需要手动设置
+$env:LIBREOFFICE_PATH = 'C:\Program Files\LibreOffice\program\soffice.com'
+```
+
+```bash
+# macOS 自定义路径示例；Linux 通常为 /usr/bin/libreoffice
+export LIBREOFFICE_PATH=/Applications/LibreOffice.app/Contents/MacOS/soffice
+
+# Word 输入：默认 LibreOffice
+python run.py papers/paper.docx --stage prep --out output/demo
+# 预览：默认 LibreOffice
+python run.py papers/paper.pdf --stage docx --out output/demo --verify
+# 可选：继续使用已安装的 Windows WPS 无头转换器
+python run.py papers/paper.pdf --stage docx --out output/demo --verify --pdf-backend wps
+```
+
+`--pdf-backend libreoffice|wps` 同时用于 Word 输入和预览；`--allow-wps` 是旧版 WPS 选项的兼容别名，两者不能同时传。
+LibreOffice 支持 Windows、macOS、Linux；本次已在 Windows 用真实 DOC/DOCX 和中英文完整报告验证转换，
+macOS/Linux 的实际渲染尚未验证。字体与办公软件的排版引擎会影响换行、公式间距和分页，须安装报告所需字体并逐页检查；
+Linux 的替代字体不能保证与 Windows 页数一致。历史案例 PDF 的生成后端见[案例说明](output/attention_is_all_you_need/README.md)。
 
 ## 效果演示
 
@@ -85,7 +123,7 @@ PDF 解析和 DOCX 生成不依赖办公软件；**Word 输入转换与完整渲
 | ![对话触发](docs/images/demo_1_chat.png) | ![制作过程](docs/images/demo_2_process.png) | ![讲解 docx 成品](docs/images/demo_3_result.png) |
 
 用户只需说「我想要阅读下 Attention is all you need」，Agent 便自动完成搜索下载、
-解析裁剪、撰写图文讲解、渲染自检，最终交付可直接用 WPS 打开的讲解文档。
+解析裁剪、撰写图文讲解、渲染自检，最终交付可用 Word、LibreOffice 或 WPS 打开的讲解文档。
 
 ## 讲解内容结构
 
@@ -135,7 +173,7 @@ baseline 检索聚焦论文明确使用的基础方法或实验对照，区分�
 - 标题**自动编号**（中文一级 一、二、三……；英文一级 1、2、3……；二/三级均为 1.1 / 1.1.1），content.json 只写标题文字
 - 所有生成的原生表格统一黑白三线表：顶线/底线 **1.5pt**，表头下方线 **0.75pt**，无竖线、无其他行间线，白底黑字。
   表格整体居中，全部单元格（含表头、说明列和公式）均**水平、垂直居中**。原论文表格截图作为证据图保留原貌。
-- 正文专业名词用 `**术语**` 加粗；公式用 `$LaTeX$` 包裹，自动转为 OMML 由 **WPS 原生渲染**
+- 正文专业名词用 `**术语**` 加粗；公式用 `$LaTeX$` 包裹，自动转为可编辑的原生 OMML 数学对象
 - 实验结果直接裁剪论文原表（Table）高清嵌入 + 逐表讲解
 
 ## Agent 执行流程（详见 SKILL.md）
@@ -156,7 +194,7 @@ baseline 检索聚焦论文明确使用的基础方法或实验对照，区分�
 ### 交付自检（硬性要求）
 
 ```bash
-python run.py papers/xxx.pdf --stage docx --out output/xxx --verify   # WPS 无头渲染预览
+python run.py papers/xxx.pdf --stage docx --out output/xxx --verify   # 默认 LibreOffice 无头渲染
 python tools/verify_math.py "output/xxx/讲解_标题.docx"                # 指定交付版本，检查对应 PDF
 ```
 
@@ -197,7 +235,7 @@ python tools/verify_math.py "output/xxx/讲解_标题.docx"                # 指
 ├── src/auto_paper_reading/     # 核心 Python 包（无 LLM API 依赖）
 │   ├── parser/                 #   解析层（pdf/docx/doc 统一为 PaperDocument）
 │   ├── figures.py              #   配图提取与裁剪（光栅图 + 图注定位矢量图）
-│   ├── omml.py                 #   LaTeX → OMML 公式转换（WPS 原生渲染）
+│   ├── omml.py                 #   LaTeX → 可编辑的 OMML 公式
 │   ├── models.py / docx_content.py  #   数据模型 / content.json 中间格式
 │   └── cli.py                  #   命令行编排
 ├── tools/
@@ -213,8 +251,8 @@ python tools/verify_math.py "output/xxx/讲解_标题.docx"                # 指
 
 - Python 3.10+：`pymupdf`、`python-docx`、`pillow`、`lxml`
 - Node.js：`docx`（docx-js 排版，`npm install`）
-- WPS Office：仅 `.doc/.docx → PDF` 输入转换与 `--verify` 预览渲染
-  （无头 `kwpsconvert word2pdf`，需显式 `--allow-wps` / `--verify` 才调用）
+- [LibreOffice](https://www.libreoffice.org/)（免费开源）：仅 `.doc/.docx → PDF` 输入转换与 `--verify` 预览渲染需要
+- WPS Office：可选兼容后端，显式 `--pdf-backend wps`；不属于默认依赖
 - **不需要**：任何 LLM API key、OpenAI SDK、联网模型服务
 
 ## 许可证与引用

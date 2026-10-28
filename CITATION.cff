@@ -5,7 +5,7 @@ title: "auto_paper_reading: Bilingual paper-reading toolkit for AI agents"
 authors:
   - name: berglingtim
     website: "https://github.com/berglingtim"
-version: 0.4.2
+version: 0.5.0
 date-released: "2026-10-28"
 license: MIT
 repository-code: "https://github.com/berglingtim/auto_paper_reading"

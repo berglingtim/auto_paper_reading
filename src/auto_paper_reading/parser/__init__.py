@@ -16,18 +16,21 @@ def parse_paper(
     path: str | Path,
     work_dir: str | Path | None = None,
     allow_wps: bool = False,
+    *,
+    pdf_backend: str | None = None,
 ) -> PaperDocument:
     """解析任意支持的论文格式，统一返回 PaperDocument。
 
     Args:
         path: 论文路径（.pdf / .docx / .doc）。
         work_dir: 工作目录，用于存放裁剪图片等中间产物；为 None 则不裁剪图片。
-        allow_wps: 是否允许调用 WPS 无头转换（仅 .doc/.docx 需要；默认关闭）。
+        allow_wps: 旧调用兼容参数，True 等同于选择 WPS；新调用使用 pdf_backend。
+        pdf_backend: Word 转换后端，默认 libreoffice；可显式选择 wps。
 
     Raises:
         FileNotFoundError: 文件不存在。
         ValueError: 不支持的格式。
-        RuntimeError: .doc/.docx 但未显式允许 WPS 转换。
+        RuntimeError: 所选转换器不可用或转换失败。
     """
     p = Path(path)
     if not p.exists():
@@ -39,13 +42,7 @@ def parse_paper(
     if ext == ".pdf":
         parser: BaseParser = PdfParser()
     else:
-        if not allow_wps:
-            raise RuntimeError(
-                f"{ext} 格式需要调用 WPS 无头转换（kwpsconvert.exe word2pdf）才能解析。\n"
-                "WPS 调用默认关闭：请确认后显式加 --allow-wps 重跑（注意：部分安全软件可能对"
-                "办公软件自动化行为误报，请自行判断是否允许）。"
-            )
-        parser = DocxParser()
+        parser = DocxParser(backend=pdf_backend or ("wps" if allow_wps else "libreoffice"))
     return parser.parse(p, Path(work_dir) if work_dir else None)
 
 

@@ -115,7 +115,7 @@ function segmentText(text) {
 
 /**
  * 生成一行文本的 TextRun 数组。
- * - `$...$` 数学公式 → 私有区字符包裹的占位 run（后续由 Python 注入 OMML，WPS 原生渲染）
+ * - `$...$` 数学公式 → 私有区字符包裹的占位 run（后续由 Python 注入可编辑 OMML）
  * - `**...**` 标记加粗（奇数段加粗）
  * - 中文用 cnFont（正体），英文/数字用 Times New Roman 正体（仅公式变量斜体）
  */

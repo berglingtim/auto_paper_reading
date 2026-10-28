@@ -1,20 +1,52 @@
-"""把 .doc / .docx 等 Word 文档转换为 PDF（借助 WPS Office）。
-
-WPS 的 kwpsconvert.exe（即 wpscli）提供 word2pdf 子命令，
-这是本机可用的唯一 Office 软件，无需额外安装。
-"""
+"""Local Word-to-PDF conversion: LibreOffice by default, WPS only when selected."""
 
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
+import sys
+import tempfile
 from pathlib import Path
+
+import fitz
 
 # 环境变量可覆盖自动查找结果
 _ENV_KEY = "WPS_CONVERT"
 
 # 查找结果缓存：WPS 安装位置在进程生命周期内不变，避免每次转换重复扫盘
 _WPS_CACHE: Path | None | bool = None   # None=未查找, False=未找到, Path=已找到
+
+
+def find_libreoffice() -> Path | None:
+    """Find the console entry point without starting an office application."""
+    configured = os.environ.get("LIBREOFFICE_PATH")
+    if configured:
+        candidate = Path(configured).expanduser()
+        if not candidate.is_file():
+            raise RuntimeError(
+                f"LIBREOFFICE_PATH 不是可执行文件 / not an executable file: {candidate}"
+            )
+        return candidate.resolve()
+    names = ("soffice.com", "soffice.exe") if sys.platform == "win32" else (
+        ("soffice", "libreoffice") if sys.platform == "darwin" else ("libreoffice", "soffice")
+    )
+    for name in names:
+        found = shutil.which(name)
+        if found:
+            return Path(found)
+    if sys.platform == "win32":
+        roots = [
+            Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "LibreOffice/program",
+            Path(os.environ.get("ProgramFiles(x86)", "C:/Program Files (x86)")) / "LibreOffice/program",
+            Path(os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData/Local"))) / "Programs/LibreOffice/program",
+        ]
+    elif sys.platform == "darwin":
+        roots = [Path("/Applications/LibreOffice.app/Contents/MacOS"),
+                 Path.home() / "Applications/LibreOffice.app/Contents/MacOS"]
+    else:
+        roots = [Path("/usr/bin"), Path("/usr/local/bin")]
+    return next((root / name for root in roots for name in names if (root / name).is_file()), None)
 
 
 def find_wps_convert() -> Path | None:
@@ -50,39 +82,63 @@ def find_wps_convert() -> Path | None:
     return None
 
 
-def doc_to_pdf(src: Path, out_dir: Path, timeout: int = 180) -> Path:
-    """把 Word 文档转换为 PDF，返回生成的 PDF 路径。
+def doc_to_pdf(src: Path, out_dir: Path, timeout: int = 180, *, backend: str = "libreoffice") -> Path:
+    """Convert into a private staging directory, validate, then replace the output.
 
-    Raises:
-        RuntimeError: 找不到 WPS 或转换失败。
+    LibreOffice uses an isolated user profile for every call. No GUI, remote
+    service, default-app changes, or automatic fallback to WPS are involved.
     """
-    src = Path(src)
-    out_dir = Path(out_dir)
-    exe = find_wps_convert()
+    if backend not in ("libreoffice", "wps"):
+        raise ValueError(f"Unsupported PDF backend: {backend!r}")
+    src = Path(src).resolve()
+    if not src.is_file():
+        raise FileNotFoundError(src)
+    if src.suffix.lower() not in (".doc", ".docx"):
+        raise ValueError(f"Word input must be .doc or .docx: {src}")
+    exe = find_libreoffice() if backend == "libreoffice" else find_wps_convert()
     if exe is None:
+        if backend == "libreoffice":
+            raise RuntimeError(
+                "未找到 LibreOffice / LibreOffice not found. "
+                "Install the free LibreOffice Writer from https://www.libreoffice.org/download/ "
+                "or set LIBREOFFICE_PATH to soffice.com (Windows) / soffice (macOS/Linux). "
+                "WPS is optional and is never selected automatically."
+            )
         raise RuntimeError(
-            "未找到 WPS Office（kwpsconvert.exe / wpscli.exe），无法转换 .doc/.docx。\n"
-            "请确认已安装 WPS Office，或用环境变量 WPS_CONVERT 指定转换程序路径。"
+            "未找到可选 WPS 转换器 / Optional WPS converter not found. "
+            "Set WPS_CONVERT to kwpsconvert.exe, or use --pdf-backend libreoffice."
         )
-
-    # wpscli 会把相对路径解析到自身安装目录，必须用绝对路径
-    src = src.resolve()
-    out_dir = out_dir.resolve()
+    out_dir = Path(out_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / f"{src.stem}.pdf"
-    # 清理同名旧产物，避免 wpscli 自动改名导致返回路径不存在
-    if out.exists():
-        out.unlink()
-    cmd = [str(exe), "word2pdf", str(src), "-o", str(out)]
-    proc = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-        encoding="utf-8",
-        errors="replace",
-    )
-    if proc.returncode != 0 or not out.exists():
-        detail = (proc.stdout or "") + (proc.stderr or "")
-        raise RuntimeError(f"WPS 转换失败（{proc.returncode}）：{detail.strip()[:500]}")
+    with tempfile.TemporaryDirectory(prefix=".paper-pdf-", dir=out_dir, ignore_cleanup_errors=True) as temporary:
+        stage = Path(temporary)
+        converted = stage / out.name
+        if backend == "libreoffice":
+            profile = (stage / "profile").as_uri()
+            cmd = [str(exe), f"-env:UserInstallation={profile}",
+                   "--headless", "--nologo", "--nodefault", "--norestore",
+                   "--convert-to", "pdf:writer_pdf_Export", "--outdir", str(stage), str(src)]
+        else:
+            cmd = [str(exe), "word2pdf", str(src), "-o", str(converted)]
+        try:
+            proc = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=timeout,
+                encoding="utf-8", errors="replace",
+                **({"creationflags": subprocess.CREATE_NO_WINDOW} if sys.platform == "win32" else {}),
+            )
+        except subprocess.TimeoutExpired as error:
+            raise RuntimeError(f"{backend} conversion timed out after {timeout}s / 转换超时") from error
+        except OSError as error:
+            raise RuntimeError(f"Cannot start {backend} converter / 无法启动转换器: {error}") from error
+        if proc.returncode != 0 or not converted.is_file():
+            detail = (proc.stdout or "") + (proc.stderr or "")
+            raise RuntimeError(f"{backend} conversion failed / 转换失败 ({proc.returncode}): {detail.strip()[:500]}")
+        try:
+            with fitz.open(stream=converted.read_bytes(), filetype="pdf") as pdf:
+                if not pdf.is_pdf or pdf.needs_pass or len(pdf) == 0:
+                    raise ValueError("PDF is empty, encrypted, or not a PDF")
+        except Exception as error:
+            raise RuntimeError(f"{backend} produced an invalid PDF / PDF 无效: {error}") from error
+        converted.replace(out)
     return out

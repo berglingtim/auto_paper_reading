@@ -23,6 +23,12 @@ Both reports include an abstract, core notation, a ConvS2S baseline comparison, 
 
 These complete reports are published with **v0.4.1**. The shorter files in `examples/` demonstrate the content format and layout.
 
+## What's new in v0.5.0
+
+- Word input conversion and `--verify` previews now default to **LibreOffice headless**, which is free and open source. No WPS, Microsoft Word, or paid conversion service is required.
+- Each conversion uses private staging and an isolated profile. A new PDF is validated before replacing the output; failures preserve the previous PDF. Failed requested previews return a nonzero exit status while retaining the generated DOCX.
+- WPS is available only through `--pdf-backend wps` or the legacy `--allow-wps` alias. There is no automatic fallback to WPS.
+
 ## What's new in v0.4.0
 
 - Chinese and English documentation, with language buttons at the top. The GitHub landing page remains Chinese.
@@ -58,7 +64,7 @@ python run.py papers/paper.pdf --stage prep --out output/en --language en
 # The agent now writes output/en/paper/content.json in English,
 # including "language": "en", an abstract, notation, and the body.
 
-# Build the report and render it for inspection with the existing WPS backend.
+# Build the report and render it with LibreOffice for inspection.
 python run.py papers/paper.pdf --stage docx --out output/en --language en --verify
 
 # Check the exact report that will be delivered.
@@ -139,20 +145,44 @@ Images scale proportionally, normally up to 4.5 inches high and 6.2 inches wide.
 
 ## Rendering support
 
-**PDF parsing and DOCX generation do not need an office application.** The current Word-to-PDF and preview backend is **Windows WPS**, using headless `kwpsconvert.exe word2pdf` (or the compatible `wpscli.exe` entry point). Set `WPS_CONVERT` if automatic discovery fails.
+**PDF parsing and DOCX generation do not need an office application.** Word input conversion and `--verify` previews default to **LibreOffice**, a free, open-source local application.
 
-- Word input requires explicit `--allow-wps`.
-- Preview rendering requires explicit `--verify`.
-- The workflow never launches the WPS GUI or changes file associations.
-- International WPS editions, Microsoft Word, LibreOffice, and macOS/Linux rendering have **not been validated by this project**. An international WPS installation is not guaranteed to include the required converter.
+On Windows or macOS, install [LibreOffice](https://www.libreoffice.org/download/), including Writer and Math. On Ubuntu/Debian:
 
-Without the supported renderer, DOCX generation and structural math checks remain available, but full visual verification is incomplete. Do not describe such an output as visually verified. This release adds bilingual support; it does not add another rendering backend.
+```bash
+sudo apt install libreoffice-writer libreoffice-math fonts-noto-cjk fonts-liberation
+```
+
+The tool searches PATH and common installation directories. To override discovery, set `LIBREOFFICE_PATH` to the executable:
+
+```powershell
+# Windows PowerShell; normally discovered automatically
+$env:LIBREOFFICE_PATH = 'C:\Program Files\LibreOffice\program\soffice.com'
+```
+
+```bash
+# macOS override; Linux typically uses /usr/bin/libreoffice
+export LIBREOFFICE_PATH=/Applications/LibreOffice.app/Contents/MacOS/soffice
+
+# DOC/DOCX input uses LibreOffice by default
+python run.py papers/paper.docx --stage prep --out output/en --language en
+# Previews also default to LibreOffice
+python run.py papers/paper.pdf --stage docx --out output/en --language en --verify
+# Optional installed Windows WPS converter
+python run.py papers/paper.pdf --stage docx --out output/en --language en --verify --pdf-backend wps
+```
+
+`--pdf-backend libreoffice|wps` selects the converter for both Word input and previews. The legacy `--allow-wps` flag is an alias for choosing WPS; it cannot be combined with `--pdf-backend`. Set `WPS_CONVERT` to the optional WPS converter if discovery fails. No backend launches a GUI or changes file associations; there is no automatic WPS fallback.
+
+LibreOffice supports Windows, macOS, and Linux. This release was tested on **Windows with real DOC/DOCX inputs and both complete example reports**; actual macOS/Linux rendering has not yet been validated. Install the fonts used by your reports. Font substitutions and different layout engines can change line breaks, formula spacing, and pagination, so inspect every page after conversion. The published historical case PDFs retain their original renderer, documented in the [case notes](output/attention_is_all_you_need/README.md).
+
+Without a converter, DOCX generation and structural math checks remain available, but visual verification is incomplete. A failed requested preview returns a nonzero exit status and preserves the generated DOCX.
 
 ## Required checks before delivery
 
 The Python build injects OMML and performs strict math checks. Directly running the Node builder produces an intermediate file and is not a complete delivery workflow. Formula failures block successful generation; a matching `.math_audit.json` records the findings.
 
-Render with `--verify`, inspect **every page**, review `verify/layout_audit.json`, and run `tools/verify_math.py` against the exact DOCX being delivered. The PDF must match the DOCX filename and be at least as recent. A CLI warning about failed rendering means verification is incomplete even if the DOCX exists.
+Render with `--verify`, inspect **every page**, review `verify/layout_audit.json` (including its `pdf_backend`), and run `tools/verify_math.py` against the exact DOCX being delivered. The PDF must match the DOCX filename and be at least as recent. Failed rendering means verification is incomplete even if the DOCX exists.
 
 Check subscripts/superscripts, fractions, table borders and centering, figure readability, heading placement, and whitespace. Structural checks cannot establish mathematical meaning or good visual layout. Correct problems, regenerate, and inspect again. Literal underscores in filenames or code identifiers require narrowly scoped `math_review_exceptions`; equations cannot be exempted.
 
@@ -174,7 +204,7 @@ requirements.txt              Python dependencies
 package.json                  Node dependency: docx
 ```
 
-Run the existing tests with `python -m pytest tests/ -q` after installing pytest. The WPS conversion test needs the supported converter. Dependencies are PyMuPDF, python-docx, Pillow, lxml, and Node's `docx` package; no LLM SDK or API key is required.
+Run the tests with `python -m pytest tests/ -q` after installing pytest. Backend smoke tests run when their converter is installed and otherwise skip; the other conversion tests do not require office software. Dependencies are PyMuPDF, python-docx, Pillow, lxml, and Node's `docx` package; no LLM SDK or API key is required.
 
 ## License and citation
 

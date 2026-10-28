@@ -11,6 +11,8 @@ These complete explanations were generated with auto_paper_reading, checked page
 | 中文 · 14 页 | [中文版 PDF](Attention_Is_All_You_Need_zh.pdf) | [中文版 DOCX](Attention_Is_All_You_Need_zh.docx?raw=true) |
 | English · 15 pages | [English PDF](Attention_Is_All_You_Need_en.pdf) | [English DOCX](Attention_Is_All_You_Need_en.docx?raw=true) |
 
+这些 v0.4.1 历史 PDF 保留 WPS 渲染快照。**v0.5.0 起项目默认使用免费开源 LibreOffice**；不需要 WPS。相同 DOCX 在不同字体和转换器下可能重新分页，须重新检查。These v0.4.1 PDFs preserve their original WPS rendering. **Starting with v0.5.0, the project defaults to free, open-source LibreOffice** and does not require WPS. Different fonts and renderers can change pagination and require fresh inspection.
+
 ## 内容 / Contents
 
 两种语言覆盖相同内容，按各自篇幅独立分页。Both versions cover the same material, with pagination adjusted for each language:
