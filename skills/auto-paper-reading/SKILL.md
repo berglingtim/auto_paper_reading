@@ -9,10 +9,10 @@ description: >-
   terminal, filesystem, web research, and image-viewing tools.
 license: MIT
 metadata:
-  version: "0.6.0"
-  toolkit-version: "0.6.0"
-  toolkit-ref: "v0.6.0"
-  docs-url: "https://github.com/berglingtim/auto_paper_reading/blob/v0.6.0/README.en.md"
+  version: "0.6.1"
+  toolkit-version: "0.6.1"
+  toolkit-ref: "v0.6.1"
+  docs-url: "https://github.com/berglingtim/auto_paper_reading/blob/v0.6.1/README.en.md"
 ---
 
 # Auto Paper Reading
@@ -22,7 +22,7 @@ equations, a concise notation table, baseline comparisons, and concrete results.
 The current agent researches, inspects, and writes; the external toolkit parses,
 typesets, and checks. It makes no LLM API calls and needs no separate model API key.
 
-Requires: a locally installed auto_paper_reading v0.6.0 toolkit; Python 3.10+ and
+Requires: a locally installed auto_paper_reading v0.6.1 toolkit; Python 3.10+ and
 its project dependencies; Node.js with the project's npm dependencies; LibreOffice
 for Word input and PDF/page previews; terminal, file, web, and image-viewing tools.
 
@@ -30,7 +30,7 @@ for Word input and PDF/page previews; terminal, file, web, and image-viewing too
 
 This is a workflow adapter, not an embedded copy of the toolkit. The public
 toolkit is an independently installed dependency:
-[release v0.6.0](https://github.com/berglingtim/auto_paper_reading/releases/tag/v0.6.0).
+[release v0.6.1](https://github.com/berglingtim/auto_paper_reading/releases/tag/v0.6.1).
 
 Read [setup and commands](references/setup.md) on first use or when the local
 environment is unknown. Read [report and verification standards](references/report-guide.md)

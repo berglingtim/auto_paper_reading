@@ -15,8 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 @pytest.fixture
 def project(tmp_path):
     root = tmp_path / "project"
-    for rel in ("skills/auto-paper-reading", "marketplace/agensi"):
-        shutil.copytree(ROOT / rel, root / rel)
+    shutil.copytree(ROOT / "skills/auto-paper-reading", root / "skills/auto-paper-reading")
     (root / "src/auto_paper_reading").mkdir(parents=True)
     shutil.copyfile(ROOT / "src/auto_paper_reading/__init__.py",
                     root / "src/auto_paper_reading/__init__.py")
@@ -31,7 +30,13 @@ def build(root, out):
         capture_output=True, text=True, encoding="utf-8")
 
 
-def test_package_contains_only_upload_files_and_matching_owner_material(project, tmp_path):
+@pytest.mark.parametrize("with_creator_materials", [False, True])
+def test_package_neither_requires_nor_publishes_creator_materials(project, tmp_path, with_creator_materials):
+    if with_creator_materials:
+        creator = project / "marketplace/agensi"
+        creator.mkdir(parents=True)
+        for name in ("listing.en.md", "UPLOAD.zh.md"):
+            (creator / name).write_text("PRIVATE CREATOR MATERIAL: do not publish")
     skill = project / "skills/auto-paper-reading"
     (skill / "private.txt").write_text("private sentinel")
     (skill / "node_modules").mkdir()
@@ -46,8 +51,7 @@ def test_package_contains_only_upload_files_and_matching_owner_material(project,
             "LICENSE", "SKILL.md", "references/report-guide.md", "references/setup.md"]
         for name in z.namelist():
             assert z.read(name) == (skill / name).read_bytes()
-    for name in ("listing.en.md", "UPLOAD.zh.md"):
-        assert (out / name).read_bytes() == (project / "marketplace/agensi" / name).read_bytes()
+    assert {p.name for p in out.iterdir()} == {archive.name, "PACKAGE.json", "SHA256SUMS.txt"}
     manifest = json.loads((out / "PACKAGE.json").read_text(encoding="utf-8"))
     assert manifest["archive"]["sha256"] == hashlib.sha256(archive.read_bytes()).hexdigest()
     for line in (out / "SHA256SUMS.txt").read_text().splitlines():

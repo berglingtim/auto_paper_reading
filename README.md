@@ -35,25 +35,22 @@ Agent 就会按 `SKILL.md` 工作流自动**搜索下载论文 → 解析裁剪�
 - 可编辑公式、黑白三线表、居中的表格单元格和统一的三级标题编号。
 - 使用免费 LibreOffice 转换 Word 输入、生成 PDF 和逐页预览，不需要 WPS 或付费转换服务。
 
-## 在 Agensi 使用与发布
+## Agensi 技能包
 
-下载 [Release 中的上传包](https://github.com/berglingtim/auto_paper_reading/releases/tag/v0.6.0)：
-**`auto-paper-reading-agensi-v0.6.0.zip`**。包内包含技能入口、参考说明和 MIT 许可证；
-运行时调用用户独立安装的本地工具包，需要 Agent 具备终端、文件、联网和看图能力。
+[Release](https://github.com/berglingtim/auto_paper_reading/releases/tag/v0.6.1) 提供
+**`auto-paper-reading-agensi-v0.6.1.zip`**，包含技能入口、参考说明和 MIT 许可证。
+使用该技能需要独立安装本地工具包，并配备终端、文件、联网和看图能力。
+详见[技能入口与参考文件](skills/auto-paper-reading/SKILL.md)。
 
-- [技能入口与参考文件](skills/auto-paper-reading/SKILL.md)
-- [英文商品文案](marketplace/agensi/listing.en.md)
-- [上传步骤](marketplace/agensi/UPLOAD.zh.md)
-
-本地重新打包：
+本地构建技能包：
 
 ```bash
 python tools/package_agensi.py
 ```
 
-输出位于 `output/agensi-v0.6.0/`，含上传 ZIP、商品文案、上传说明、文件清单和校验值。
-打包采用固定文件清单，只收集技能需要的文本。GitHub 自动生成的 Source code ZIP
-用于获取整套源码，上传 Agensi 时请使用上述专用附件。
+输出位于 `output/agensi-v0.6.1/`，只生成技能 ZIP、`PACKAGE.json` 和
+`SHA256SUMS.txt`。打包采用固定文件清单。GitHub 自动生成的 Source code ZIP
+用于获取完整源码；Agensi 使用上述专用附件。
 
 ## 怎么用
 
@@ -237,7 +234,6 @@ python tools/verify_math.py "output/xxx/xxx/讲解_标题.docx"                #
 ├── README.md / README.en.md    # 中英文说明，默认中文
 ├── SKILL.md / SKILL.en.md      # 本地工具包的中英文 Agent 工作流
 ├── skills/auto-paper-reading/ # Agensi 入口、参考文件与 MIT 许可证
-├── marketplace/agensi/        # 英文商品文案与上传说明
 ├── examples/                  # 中英文 content.json 排版示例
 ├── docs/images/                # README 效果演示截图
 ├── run.py                      # CLI 入口（prep / docx 两阶段）
@@ -250,7 +246,7 @@ python tools/verify_math.py "output/xxx/xxx/讲解_标题.docx"                #
 ├── tools/
 │   ├── build_docx.js           # docx-js 排版（字体/字号/编号/公式占位）
 │   ├── verify_math.py         # 公式渲染交付自检
-│   └── package_agensi.py      # 生成 Agensi 上传包与商品资料
+│   └── package_agensi.py      # 生成 Agensi 技能包、清单与校验值
 ├── papers/                     # 论文输入目录（Agent 自动下载或用户提供）
 ├── output/                     # 讲解输出；公开 Attention 中英文案例，其余默认忽略
 ├── tests/                      # 功能与回归测试（python -m pytest tests/ -q）

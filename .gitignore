@@ -14,7 +14,12 @@ node_modules/
 
 # 密钥与本地配置（config.json 含 API key，不提交）
 .env
+.env.*
+!.env.example
 config.json
+.codex/
+.agents/
+.aws/
 
 # 输出与论文（用户私有数据）
 output/*
@@ -44,3 +49,6 @@ Thumbs.db
 # 内部开发文档（仅本地保留，不上传）
 AGENTS.md
 LOGS.md
+
+# 平台上架文案与作者操作资料（仅本地保留）
+marketplace/

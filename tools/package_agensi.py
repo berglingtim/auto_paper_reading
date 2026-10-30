@@ -1,4 +1,4 @@
-"""Build the text-only Agensi upload ZIP and creator materials (stdlib only)."""
+"""Build the public Agensi skill ZIP, manifest, and checksums (stdlib only)."""
 from __future__ import annotations
 
 import argparse
@@ -13,7 +13,6 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 UPLOAD_FILES = ("LICENSE", "SKILL.md", "references/report-guide.md", "references/setup.md")
-CREATOR_FILES = ("listing.en.md", "UPLOAD.zh.md")
 
 
 def digest(data: bytes) -> str:
@@ -59,14 +58,6 @@ def build_package(root: Path, out: Path) -> Path:
             target = PurePosixPath(name).parent / unquote(url.path)
             if target.is_absolute() or ".." in target.parts or target.as_posix() not in files:
                 raise ValueError(f"Missing or unsafe package reference: {name} -> {link}")
-    creator = {name: (root / "marketplace/agensi" / name).read_bytes()
-               for name in CREATOR_FILES}
-    listing = creator["listing.en.md"].decode("utf-8").replace("\r\n", "\n")
-    fields = {m.group(1): m.group(2).strip() for m in re.finditer(
-        r"^## ([^\n]+)\n(.*?)(?=^## |\Z)", listing, re.M | re.S)}
-    for name, limit in (("Name", 60), ("Summary", 300)):
-        if not 0 < len(fields.get(name, "")) <= limit:
-            raise ValueError(f"Listing {name} must contain 1–{limit} characters")
     if sum(len(text) for text in texts.values()) > 6_000_000:
         raise ValueError("Package exceeds the text delivery limit")
 
@@ -85,8 +76,6 @@ def build_package(root: Path, out: Path) -> Path:
             raise ValueError("ZIP verification failed")
         if any(z.read(name) != data for name, data in files.items()):
             raise ValueError("ZIP content verification failed")
-    for name, data in creator.items():
-        (out / name).write_bytes(data)
     manifest = {
         "version": version,
         "archive": {"name": archive.name, "bytes": archive.stat().st_size,
@@ -100,7 +89,7 @@ def build_package(root: Path, out: Path) -> Path:
     }
     (out / "PACKAGE.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    deliverables = [archive, *(out / name for name in CREATOR_FILES), out / "PACKAGE.json"]
+    deliverables = [archive, out / "PACKAGE.json"]
     (out / "SHA256SUMS.txt").write_text(
         "".join(f"{digest(p.read_bytes())}  {p.name}\n" for p in deliverables),
         encoding="utf-8")

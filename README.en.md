@@ -31,28 +31,25 @@ The runnable files in `examples/` demonstrate the content format and layout.
 - Typesets editable equations, monochrome three-line tables, centered cells, and consistent heading numbers.
 - Uses free LibreOffice for Word input conversion, PDF output, and page previews. WPS and paid conversion services are not required.
 
-## Use and publish on Agensi
+## Agensi skill package
 
-Download **`auto-paper-reading-agensi-v0.6.0.zip`** from the
-[release assets](https://github.com/berglingtim/auto_paper_reading/releases/tag/v0.6.0).
+Download **`auto-paper-reading-agensi-v0.6.1.zip`** from the
+[release assets](https://github.com/berglingtim/auto_paper_reading/releases/tag/v0.6.1).
 The package contains skill instructions, references, and the MIT license.
 Execution uses a separately installed local toolkit and an agent with terminal,
 filesystem, web research, and image-viewing tools.
+See the [skill entry point and references](skills/auto-paper-reading/SKILL.md).
 
-- [Skill entry point and references](skills/auto-paper-reading/SKILL.md)
-- [English listing copy](marketplace/agensi/listing.en.md)
-- [Upload instructions](marketplace/agensi/UPLOAD.zh.md)
-
-Rebuild locally:
+Build the skill package locally:
 
 ```bash
 python tools/package_agensi.py
 ```
 
-The `output/agensi-v0.6.0/` directory contains the upload ZIP, listing copy,
-upload guide, file manifest, and checksums. An explicit file list selects the
-required skill text. GitHub's automatic Source code ZIP contains the full
-repository; use the dedicated release attachment for Agensi uploads.
+The `output/agensi-v0.6.1/` directory contains only the skill ZIP,
+`PACKAGE.json`, and `SHA256SUMS.txt`. An explicit file list selects the required
+skill text. GitHub's automatic Source code ZIP contains the full repository;
+use the dedicated release attachment for Agensi.
 
 ## Quick start
 
@@ -210,14 +207,13 @@ Check subscripts/superscripts, fractions, table borders and centering, figure re
 README.md / README.en.md       Chinese and English documentation
 SKILL.md / SKILL.en.md         Local toolkit workflows
 skills/auto-paper-reading/     Agensi skill and references
-marketplace/agensi/            English listing copy and upload guide
 examples/                     Matching bilingual content examples
 docs/images/                  README illustrations and language buttons
 run.py                        CLI entry point: prep / docx
 src/auto_paper_reading/        Parsing, cropping, content, OMML, and checks
 tools/build_docx.js            DOCX layout builder
 tools/verify_math.py           Delivery-time equation checks
-tools/package_agensi.py        Agensi upload ZIP and creator materials
+tools/package_agensi.py        Agensi skill ZIP, manifest, and checksums
 papers/                       Local input papers (ignored)
 output/                       Public Attention case study; other generated output is ignored
 tests/                        Functional and regression tests

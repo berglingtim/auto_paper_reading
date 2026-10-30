@@ -5,17 +5,17 @@ external project; no bundled script or binary needs to be fetched from Agensi.
 
 ## Installation
 
-Target: the public **v0.6.0** release.
+Target: the public **v0.6.1** release.
 Use an existing installation if suitable. If setup has been requested, install
 into a new user-selected directory; do not reset or overwrite an existing repo.
 
 ```sh
-git clone --branch v0.6.0 --depth 1 https://github.com/berglingtim/auto_paper_reading.git auto_paper_reading
+git clone --branch v0.6.1 --depth 1 https://github.com/berglingtim/auto_paper_reading.git auto_paper_reading
 cd auto_paper_reading
 git describe --tags --exact-match
 ```
 
-The reported tag should be `v0.6.0`. For an existing modified or
+The reported tag should be `v0.6.1`. For an existing modified or
 different version, inspect the difference or choose a separate pinned checkout;
 do not silently substitute unverified code. If Git is unavailable, the same
 version's source archive is available from its GitHub release page.
@@ -71,7 +71,7 @@ node -e "const {Document,Packer}=require('docx'); if(typeof Document!=='function
 python run.py --help
 ```
 
-The toolkit version should be `0.6.0`. Also check the configured LibreOffice
+The toolkit version should be `0.6.1`. Also check the configured LibreOffice
 executable with `--version` before promising PDF previews. A working version
 command does not replace an actual conversion and page review.
 
