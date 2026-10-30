@@ -1,6 +1,7 @@
 """Converter behavior is tested without Office; installed backends get a real smoke test."""
 import json
 import subprocess
+from urllib.parse import unquote, urlparse
 from pathlib import Path
 
 import docx
@@ -55,7 +56,8 @@ def test_default_conversion_uses_libreoffice_with_private_profile(tmp_path, monk
     cmd = commands[0]
     assert cmd[0] == str(executable)
     assert "--headless" in cmd and "pdf:writer_pdf_Export" in cmd
-    assert cmd[-1] == str(source.resolve())
+    assert Path(cmd[-1]).suffix == source.suffix
+    assert not Path(cmd[-1]).exists()  # The private working copy is cleaned up.
     profile = next(arg for arg in cmd if arg.startswith("-env:UserInstallation="))
     assert profile.startswith("-env:UserInstallation=file:")
     assert "--nolockcheck" not in cmd
@@ -77,11 +79,11 @@ def test_failed_conversion_preserves_previous_pdf(tmp_path, monkeypatch, convert
         if failure == "timeout":
             raise subprocess.TimeoutExpired(cmd, kwargs["timeout"])
         if failure == "invalid":
-            (Path(cmd[cmd.index("--outdir") + 1]) / "report.pdf").write_text("Not a PDF")
+            (Path(cmd[cmd.index("--outdir") + 1]) / (Path(cmd[-1]).stem + ".pdf")).write_text("Not a PDF")
         return subprocess.CompletedProcess(cmd, 1 if failure == "exit" else 0, "", "conversion error")
 
     monkeypatch.setattr(convert.subprocess, "run", fail)
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError, match="invalid PDF" if failure == "invalid" else None):
         convert.doc_to_pdf(src, out, timeout=1)
     assert old.read_bytes() == previous
     assert list(out.iterdir()) == [old]
@@ -206,3 +208,80 @@ def test_legacy_doc_is_converted_and_parsed_with_libreoffice(tmp_path):
     assert paper.format == "doc" and paper.metadata["pdf_backend"] == "libreoffice"
     with fitz.open(paper.metadata["converted_pdf"]) as pdf:
         assert "Legacy Word document" in pdf[0].get_text()
+
+
+def test_conversion_isolated_from_deep_user_paths(tmp_path, monkeypatch, converter_process):
+    """An Office process with path limits must still receive a readable input."""
+    deep = tmp_path
+    while len(str(deep)) < 205:
+        deep = deep / "nested paper folder"
+    deep.mkdir(parents=True)
+    source = deep / "论文 #%.docx"
+    document = docx.Document()
+    document.add_paragraph("Preserved input content")
+    document.save(source)
+    original = source.read_bytes()
+    out = deep / "output"
+
+    def limited_office(cmd, **kwargs):
+        input_path = Path(cmd[-1])
+        output_dir = Path(cmd[cmd.index("--outdir") + 1])
+        profile = next(arg.split("=", 1)[1] for arg in cmd
+                       if arg.startswith("-env:UserInstallation="))
+        paths = [str(input_path), str(output_dir), unquote(urlparse(profile).path)]
+        # Model the observed external converter failure; all file I/O stays real.
+        if any(len(path) > 200 for path in paths):
+            return subprocess.CompletedProcess(cmd, 0, "", "")
+        assert input_path.read_bytes() == original
+        text = docx.Document(input_path).paragraphs[0].text
+        write_pdf(output_dir / (input_path.stem + ".pdf"), text)
+        return subprocess.CompletedProcess(cmd, 0, "converted", "")
+
+    monkeypatch.setattr(convert.subprocess, "run", limited_office)
+    pdf = convert.doc_to_pdf(source, out)
+    assert pdf == out / "论文 #%.pdf"
+    assert source.read_bytes() == original
+    assert list(out.iterdir()) == [pdf]
+    with fitz.open(pdf) as result:
+        assert "Preserved input content" in result[0].get_text()
+
+
+def test_installed_libreoffice_handles_deep_input_and_output(tmp_path):
+    if convert.find_libreoffice() is None:
+        pytest.skip("LibreOffice is not installed")
+    deep = tmp_path
+    while len(str(deep)) < 205:
+        deep = deep / "nested paper folder"
+    deep.mkdir(parents=True)
+    source = deep / "论文 #%.docx"
+    document = docx.Document()
+    document.add_paragraph("Readable deep path conversion")
+    document.save(source)
+    original = source.read_bytes()
+    pdf = convert.doc_to_pdf(source, deep / "output")
+    assert source.read_bytes() == original
+    with fitz.open(pdf) as result:
+        assert "Readable deep path conversion" in result[0].get_text()
+
+
+def test_failed_pdf_publication_copy_preserves_previous_output(tmp_path, monkeypatch, converter_process):
+    source = tmp_path / "report.docx"
+    source.write_bytes(b"unchanged input")
+    out = tmp_path / "out"
+    out.mkdir()
+    previous = out / "report.pdf"
+    write_pdf(previous, "Previous verified report")
+    original = previous.read_bytes()
+    copyfileobj = convert.shutil.copyfileobj
+
+    def fail_copy(source_stream, output_stream, *args, **kwargs):
+        if Path(output_stream.name).parent != out:
+            return copyfileobj(source_stream, output_stream, *args, **kwargs)
+        output_stream.write(b"partial new PDF")
+        raise OSError("Destination write failed")
+
+    monkeypatch.setattr(convert.shutil, "copyfileobj", fail_copy)
+    with pytest.raises(OSError, match="Destination write failed"):
+        convert.doc_to_pdf(source, out)
+    assert previous.read_bytes() == original
+    assert list(out.iterdir()) == [previous]

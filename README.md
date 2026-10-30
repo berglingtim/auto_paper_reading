@@ -11,7 +11,7 @@
 Agent 就会按 `SKILL.md` 工作流自动**搜索下载论文 → 解析裁剪关键图 → 视觉选图 →
 查找 baseline 与领域问题 → 图文结合撰写讲解 → 生成 docx → 渲染自检**，最终交付中文或英文讲解 docx，默认中文。
 
-**不调用任何 LLM API、不需要任何 API key**：所有「智能」都由 Agent 自己完成，
+**工具包不调用 LLM API、不需要额外模型 API key**：所有「智能」都由 Agent 自己完成，
 本仓库只提供机械的解析、裁剪、排版与自检脚本。
 
 ## 先读完整案例：Attention Is All You Need
@@ -25,29 +25,35 @@ Agent 就会按 `SKILL.md` 工作流自动**搜索下载论文 → 解析裁剪�
 
 两份案例均包含摘要、核心符号表、ConvS2S baseline 对比、完整方法与数据流、原文图表，以及结合后续论文的“证据 → 推断”场景分析。已通过公式检查和逐页视觉检查，详见[案例说明与来源](output/attention_is_all_you_need/README.md)。
 
-完整案例随 **v0.4.1** 发布；`examples/` 中的短示例用于演示内容格式与排版。
+`examples/` 提供可运行的中英文排版样例，便于了解内容格式。
 
-## v0.5.0 免费开源 PDF 转换
+## 可以得到什么
 
-- `.doc/.docx` 输入转换和 `--verify` 预览默认使用 **LibreOffice 无头模式**，无需 WPS、Microsoft Word 或付费服务。
-- 转换使用独立临时目录与用户配置；检查新 PDF 有效后才替换结果，失败保留旧 PDF。请求预览但转换失败时，命令返回非零状态，已生成的 DOCX 保留。
-- WPS 仅在显式指定 `--pdf-backend wps` 时启用；旧参数 `--allow-wps` 保留为兼容别名，不会自动回退到 WPS。
+- 图文结合的中文或英文 Word 讲解，默认中文，也可分别生成两种语言。
+- 前置摘要和精简符号表；正文讲清前置知识、方法动机、核心机制、数据流和实验结果。
+- 查找可靠 baseline，对比双方核心；结合领域研究，以“证据 → 推断”分析解决范围和剩余问题。
+- 可编辑公式、黑白三线表、居中的表格单元格和统一的三级标题编号。
+- 使用免费 LibreOffice 转换 Word 输入、生成 PDF 和逐页预览，不需要 WPS 或付费转换服务。
 
-## v0.4.0 中英文双语
+## 在 Agensi 使用与发布
 
-- README 默认展示中文，顶部按钮可切换[完整英文说明](README.en.md)；Agent 工作流也有[英文版](SKILL.en.md)。
-- 报告支持 `language: "zh"` / `"en"`，省略时保持中文。英文版自动切换摘要/符号表表头、图注前缀、年份、章节/公式编号和输出文件名前缀。
-- `--language en` / `--language zh` 可覆盖 `content.json` 的语言设置。正文、章节名和表格内容由 Agent 按目标语言撰写；该选项只控制排版语言，不是自动翻译服务。
-- [中文示例](examples/zh/content.json)与[英文示例](examples/en/content.json)采用同一结构；生成方法见[双语排版示例](examples/README.md)。
+下载 [Release 中的上传包](https://github.com/berglingtim/auto_paper_reading/releases/tag/v0.6.0)：
+**`auto-paper-reading-agensi-v0.6.0.zip`**。包内包含技能入口、参考说明和 MIT 许可证；
+运行时调用用户独立安装的本地工具包，需要 Agent 具备终端、文件、联网和看图能力。
 
-## v0.3.0 报告规范升级
+- [技能入口与参考文件](skills/auto-paper-reading/SKILL.md)
+- [英文商品文案](marketplace/agensi/listing.en.md)
+- [上传步骤](marketplace/agensi/UPLOAD.zh.md)
 
-- **先看结论再读方法**：正文前增加摘要和核心符号表；摘要包含背景、应用场景、解决的问题与具体数据集表现，简单临时变量随用随释。
-- **讲清方法改进**：定位论文的 baseline，核实可靠原作后对比双方核心机制与具体改动；找不到可靠资料时跳过。
-- **用证据分析解决范围**：第五部分先检索领域相关论文中的问题与应用场景，再对照本文的方法和实验，以“证据 → 推断”说明实际解决了什么、适用于什么条件、还留下什么问题。
-- **统一 Word 排版**：黑白三线表采用 1.5pt 顶底线与 0.75pt 表头线，单元格水平、垂直居中；标题使用“一 / 1.1 / 1.1.1”，表内公式保持可编辑并纳入数学检查。
+本地重新打包：
 
-旧版 `content.json` 仍可生成；新规范用于今后生成或重新生成的报告。
+```bash
+python tools/package_agensi.py
+```
+
+输出位于 `output/agensi-v0.6.0/`，含上传 ZIP、商品文案、上传说明、文件清单和校验值。
+打包采用固定文件清单，只收集技能需要的文本。GitHub 自动生成的 Source code ZIP
+用于获取整套源码，上传 Agensi 时请使用上述专用附件。
 
 ## 怎么用
 
@@ -62,7 +68,7 @@ Agent 就会按 `SKILL.md` 工作流自动**搜索下载论文 → 解析裁剪�
 
 ```bash
 python -m pip install -r requirements.txt
-npm install
+npm ci
 ```
 
 **选择报告语言**：说“用中文讲解 Attention Is All You Need”或“Explain Attention Is All You Need in English”。
@@ -109,10 +115,12 @@ python run.py papers/paper.pdf --stage docx --out output/demo --verify
 python run.py papers/paper.pdf --stage docx --out output/demo --verify --pdf-backend wps
 ```
 
-`--pdf-backend libreoffice|wps` 同时用于 Word 输入和预览；`--allow-wps` 是旧版 WPS 选项的兼容别名，两者不能同时传。
-LibreOffice 支持 Windows、macOS、Linux；本次已在 Windows 用真实 DOC/DOCX 和中英文完整报告验证转换，
+`--pdf-backend libreoffice|wps` 同时用于 Word 输入和预览；`--allow-wps` 是 WPS 选项的别名，两者不能同时传。
+转换器在系统临时目录中使用短文件名和独立配置，完成后验证 PDF，再安全写回目标目录；转换或写入失败时保留已有 PDF。需要允许本地转换器读写系统临时目录。
+
+LibreOffice 支持 Windows、macOS、Linux；项目已在 Windows 验证真实 DOC/DOCX、深路径转换及中英文排版样例，
 macOS/Linux 的实际渲染尚未验证。字体与办公软件的排版引擎会影响换行、公式间距和分页，须安装报告所需字体并逐页检查；
-Linux 的替代字体不能保证与 Windows 页数一致。历史案例 PDF 的生成后端见[案例说明](output/attention_is_all_you_need/README.md)。
+Linux 的替代字体不能保证与 Windows 页数一致。案例 PDF 的生成配置见[案例说明](output/attention_is_all_you_need/README.md)。
 
 ## 效果演示
 
@@ -185,7 +193,7 @@ baseline 检索聚焦论文明确使用的基础方法或实验对照，区分�
   ↓ ② 视觉分析：Agent 逐张看候选图选关键图，不理想则按坐标重裁
   ↓ ②.5 查找 baseline：从主论文定位，按需检索原作，对比双方核心；找不到就跳过
   ↓ ②.6 检索领域问题：查近期相关论文中的难题和场景，对照本文已解决、未解决及未验证范围
-  ↓ ③ 撰写讲解：写 output/xxx/content.json（摘要 → 符号表 → 五部分图文正文）
+  ↓ ③ 撰写讲解：写 output/xxx/xxx/content.json（摘要 → 符号表 → 五部分图文正文）
   ↓ ④ 生成 docx：python run.py papers/xxx.pdf --stage docx --out output/xxx
   ↓ ⑤ 自检：--verify 渲染预览逐页核验 + python tools/verify_math.py
   ↓ ⑥ 交付：对话中讲解 + 告知 docx 路径
@@ -195,17 +203,17 @@ baseline 检索聚焦论文明确使用的基础方法或实验对照，区分�
 
 ```bash
 python run.py papers/xxx.pdf --stage docx --out output/xxx --verify   # 默认 LibreOffice 无头渲染
-python tools/verify_math.py "output/xxx/讲解_标题.docx"                # 指定交付版本，检查对应 PDF
+python tools/verify_math.py "output/xxx/xxx/讲解_标题.docx"                # 指定交付版本，检查对应 PDF
 ```
 
-再对公式密集区域视觉抽验；全部通过才交付。输出 docx 被占用（如正被 WPS 打开）时自动写 `_v2` 文件。
+逐页查看预览，并放大检查公式密集区域；全部通过才交付。输出 docx 被占用（如正被 WPS 打开）时自动写 `_v2` 文件。
 
-## 报告规范（v0.4.0）
+## 内容格式与检查
 
 - 顶层 `language` 支持 `"zh"`（默认）或 `"en"`；正文不由排版器自动翻译。
-- 新报告顶层填写 `abstract`（非空中文字符串）和 `symbols`（符号数组），自动放在正文前；
+- 新报告顶层填写 `abstract`（非空的目标语言字符串）和 `symbols`（符号数组），自动放在正文前；
   `symbols` 每项填写 `symbol`、`meaning`、`shape`、`role`、`source`，数学内容用 `$...$`。
-  没有需要集中查询的核心符号时用 `[]`，简单变量在正文解释；旧版未含这两个字段的 content.json 仍可生成。
+  没有需要集中查询的核心符号时用 `[]`，简单变量在正文解释。
 - 原生可编辑表格块：`{"type":"table","headers":["方法","核心"],"rows":[["Baseline","核心机制"],["本文","具体改动"]],"column_weights":[1,3]}`。
   单元格支持换行、加粗和行内公式，表头跨页重复；表格内公式也会转换为 OMML 并执行数学检查。
   详细字段和写作规范见 [SKILL.md](SKILL.md)。
@@ -218,7 +226,6 @@ python tools/verify_math.py "output/xxx/讲解_标题.docx"                # 指
 - 使用 Python `--stage docx` 完成 OMML 公式注入；Node 脚本仅为中间排版阶段。
 - 数学检查强制执行：逐公式核对 `_`/`^` 与 OMML 上下标结构，扫描正文及数学对象残留；失败阻止成功返回，同名 `.math_audit.json` 记录位置及问题。
 - 文件名等字面下划线须用 `math_review_exceptions` 记录完整段落和 `reason` 后逐项复核；公式内部残留不能豁免。交付前仍须渲染并逐页核对，自动检查不能证明数学语义或视觉效果正确。
-- 更新对今后生成或重新生成的报告生效，已有 DOCX 需重新生成。
 - 图片默认等比例缩到最高 4.5in，避免大图挤走正文；图片与图注保持相邻，标题与后文同页。
 - 可在顶层 `layout` 设置 `max_figure_height_in` / `max_figure_width_in`，单个 figure 或引用它的 block 可用 `max_height_in` / `max_width_in` 覆盖。
 - 章节或 block 支持 `page_break_before: true`；`{"type":"page_break"}` 可在下一段内容前换页。
@@ -228,7 +235,9 @@ python tools/verify_math.py "output/xxx/讲解_标题.docx"                # 指
 
 ```
 ├── README.md / README.en.md    # 中英文说明，默认中文
-├── SKILL.md / SKILL.en.md      # 中英文 Agent 工作流
+├── SKILL.md / SKILL.en.md      # 本地工具包的中英文 Agent 工作流
+├── skills/auto-paper-reading/ # Agensi 入口、参考文件与 MIT 许可证
+├── marketplace/agensi/        # 英文商品文案与上传说明
 ├── examples/                  # 中英文 content.json 排版示例
 ├── docs/images/                # README 效果演示截图
 ├── run.py                      # CLI 入口（prep / docx 两阶段）
@@ -240,7 +249,8 @@ python tools/verify_math.py "output/xxx/讲解_标题.docx"                # 指
 │   └── cli.py                  #   命令行编排
 ├── tools/
 │   ├── build_docx.js           # docx-js 排版（字体/字号/编号/公式占位）
-│   └── verify_math.py          # 公式渲染交付自检
+│   ├── verify_math.py         # 公式渲染交付自检
+│   └── package_agensi.py      # 生成 Agensi 上传包与商品资料
 ├── papers/                     # 论文输入目录（Agent 自动下载或用户提供）
 ├── output/                     # 讲解输出；公开 Attention 中英文案例，其余默认忽略
 ├── tests/                      # 功能与回归测试（python -m pytest tests/ -q）
@@ -250,7 +260,7 @@ python tools/verify_math.py "output/xxx/讲解_标题.docx"                # 指
 ## 依赖
 
 - Python 3.10+：`pymupdf`、`python-docx`、`pillow`、`lxml`
-- Node.js：`docx`（docx-js 排版，`npm install`）
+- Node.js：`docx`（docx-js 排版，`npm ci`）
 - [LibreOffice](https://www.libreoffice.org/)（免费开源）：仅 `.doc/.docx → PDF` 输入转换与 `--verify` 预览渲染需要
 - WPS Office：可选兼容后端，显式 `--pdf-backend wps`；不属于默认依赖
 - **不需要**：任何 LLM API key、OpenAI SDK、联网模型服务

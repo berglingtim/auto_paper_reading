@@ -8,7 +8,7 @@
 
 A **paper-reading toolkit for AI agents**. Open this repository in a workspace with a vision-capable agent, such as Claude Code, Codex, Qwen Code, or Kimi Code, and ask it to explain a paper. The agent follows the workflow to **find the paper → parse it and crop figures → inspect the figures → investigate baselines and field challenges → write an illustrated explanation → build and check a DOCX report**.
 
-Reports can be written in **Chinese or English**. Chinese remains the default. The toolkit **does not call an LLM API or require an API key**: the agent does the research, visual analysis, and writing. The scripts handle parsing, cropping, typesetting, and checks.
+Reports can be written in **Chinese or English**. Chinese remains the default. The toolkit **does not call an LLM API or require a separate model API key**: the agent does the research, visual analysis, and writing. The scripts handle parsing, cropping, typesetting, and checks.
 
 ## Read a complete example: Attention Is All You Need
 
@@ -21,22 +21,38 @@ See the finished bilingual reports in `output` before installing anything:
 
 Both reports include an abstract, core notation, a ConvS2S baseline comparison, the complete method and data flow, original figures and tables, and scenario analysis using **evidence → inference** from subsequent research. Equations and every rendered page have been checked. See the [case study notes and sources](output/attention_is_all_you_need/README.md).
 
-These complete reports are published with **v0.4.1**. The shorter files in `examples/` demonstrate the content format and layout.
+The runnable files in `examples/` demonstrate the content format and layout.
 
-## What's new in v0.5.0
+## What it does
 
-- Word input conversion and `--verify` previews now default to **LibreOffice headless**, which is free and open source. No WPS, Microsoft Word, or paid conversion service is required.
-- Each conversion uses private staging and an isolated profile. A new PDF is validated before replacing the output; failures preserve the previous PDF. Failed requested previews return a nonzero exit status while retaining the generated DOCX.
-- WPS is available only through `--pdf-backend wps` or the legacy `--allow-wps` alias. There is no automatic fallback to WPS.
+- Produces illustrated, editable Word explanations in Chinese or English, or two separate versions.
+- Starts with an abstract and concise notation, then explains prerequisites, motivation, mechanisms, data flow, and results.
+- Compares verified baselines and uses **evidence → inference** to examine application scope and remaining problems.
+- Typesets editable equations, monochrome three-line tables, centered cells, and consistent heading numbers.
+- Uses free LibreOffice for Word input conversion, PDF output, and page previews. WPS and paid conversion services are not required.
 
-## What's new in v0.4.0
+## Use and publish on Agensi
 
-- Chinese and English documentation, with language buttons at the top. The GitHub landing page remains Chinese.
-- An [English agent workflow](SKILL.en.md), alongside the [Chinese workflow](SKILL.md).
-- Report language selection through `content.json.language` or `--language zh|en`. Generated headings, notation labels, caption prefixes, dates, equation numbers, and filename prefixes follow that selection.
-- Matching [Chinese](examples/zh/content.json) and [English](examples/en/content.json) layout examples. See [how to build them](examples/README.md).
+Download **`auto-paper-reading-agensi-v0.6.0.zip`** from the
+[release assets](https://github.com/berglingtim/auto_paper_reading/releases/tag/v0.6.0).
+The package contains skill instructions, references, and the MIT license.
+Execution uses a separately installed local toolkit and an agent with terminal,
+filesystem, web research, and image-viewing tools.
 
-The report standards introduced in v0.3.0 remain: an opening abstract and concise notation table, baseline mechanism comparisons, evidence-based analysis of scope and unresolved problems, and centered monochrome three-line tables.
+- [Skill entry point and references](skills/auto-paper-reading/SKILL.md)
+- [English listing copy](marketplace/agensi/listing.en.md)
+- [Upload instructions](marketplace/agensi/UPLOAD.zh.md)
+
+Rebuild locally:
+
+```bash
+python tools/package_agensi.py
+```
+
+The `output/agensi-v0.6.0/` directory contains the upload ZIP, listing copy,
+upload guide, file manifest, and checksums. An explicit file list selects the
+required skill text. GitHub's automatic Source code ZIP contains the full
+repository; use the dedicated release attachment for Agensi uploads.
 
 ## Quick start
 
@@ -45,7 +61,7 @@ The report standards introduced in v0.3.0 remain: an opening abstract and concis
 
    ```bash
    python -m pip install -r requirements.txt
-   npm install
+   npm ci
    ```
 
 3. Ask the agent: **“Explain Attention Is All You Need in English and produce an illustrated Word report.”** You can also provide a local PDF, DOCX, or DOC file.
@@ -75,7 +91,7 @@ The working directory is always `<--out>/<input filename without extension>/`. U
 
 During the DOCX stage, language precedence is **`--language` → `content.json.language` → `zh`**. Accepted values are `zh` and `en`; unsupported values are rejected. The prep stage only uses the flag for CLI messages; the agent must still set the language when authoring `content.json`.
 
-**The language setting does not translate authored text.** The agent must write the title, abstract, notation explanations, section titles, body, captions, and table cells in the requested language. The scripts localize generated labels and numbering. No translation service or model API is invoked. Existing content files without a language field retain Chinese behavior.
+**The language setting does not translate authored text.** The agent must write the title, abstract, notation explanations, section titles, body, captions, and table cells in the requested language. The scripts localize generated labels and numbering. No translation service or model API is invoked. Chinese is used when no language is specified.
 
 ## What the report contains
 
@@ -172,9 +188,11 @@ python run.py papers/paper.pdf --stage docx --out output/en --language en --veri
 python run.py papers/paper.pdf --stage docx --out output/en --language en --verify --pdf-backend wps
 ```
 
-`--pdf-backend libreoffice|wps` selects the converter for both Word input and previews. The legacy `--allow-wps` flag is an alias for choosing WPS; it cannot be combined with `--pdf-backend`. Set `WPS_CONVERT` to the optional WPS converter if discovery fails. No backend launches a GUI or changes file associations; there is no automatic WPS fallback.
+`--pdf-backend libreoffice|wps` selects the converter for both Word input and previews. The `--allow-wps` flag is an alias for choosing WPS; it cannot be combined with `--pdf-backend`. Set `WPS_CONVERT` to the optional WPS converter if discovery fails. No backend launches a GUI or changes file associations; there is no automatic WPS fallback.
 
-LibreOffice supports Windows, macOS, and Linux. This release was tested on **Windows with real DOC/DOCX inputs and both complete example reports**; actual macOS/Linux rendering has not yet been validated. Install the fonts used by your reports. Font substitutions and different layout engines can change line breaks, formula spacing, and pagination, so inspect every page after conversion. The published historical case PDFs retain their original renderer, documented in the [case notes](output/attention_is_all_you_need/README.md).
+The converter uses short filenames and an isolated profile in the system temporary directory. It validates the PDF before safely publishing it to the requested output location; conversion or write failures preserve the previous PDF. The host must allow local temporary-directory access.
+
+LibreOffice supports Windows, macOS, and Linux. The project has been tested on **Windows with real DOC/DOCX inputs, deep paths, and bilingual layout examples**; actual macOS/Linux rendering has not yet been validated. Install the fonts used by your reports. Font substitutions and different layout engines can change line breaks, formula spacing, and pagination, so inspect every page after conversion. Rendering details for the published case PDFs are documented in the [case notes](output/attention_is_all_you_need/README.md).
 
 Without a converter, DOCX generation and structural math checks remain available, but visual verification is incomplete. A failed requested preview returns a nonzero exit status and preserves the generated DOCX.
 
@@ -190,13 +208,16 @@ Check subscripts/superscripts, fractions, table borders and centering, figure re
 
 ```text
 README.md / README.en.md       Chinese and English documentation
-SKILL.md / SKILL.en.md         Agent workflows
+SKILL.md / SKILL.en.md         Local toolkit workflows
+skills/auto-paper-reading/     Agensi skill and references
+marketplace/agensi/            English listing copy and upload guide
 examples/                     Matching bilingual content examples
 docs/images/                  README illustrations and language buttons
 run.py                        CLI entry point: prep / docx
 src/auto_paper_reading/        Parsing, cropping, content, OMML, and checks
 tools/build_docx.js            DOCX layout builder
 tools/verify_math.py           Delivery-time equation checks
+tools/package_agensi.py        Agensi upload ZIP and creator materials
 papers/                       Local input papers (ignored)
 output/                       Public Attention case study; other generated output is ignored
 tests/                        Functional and regression tests

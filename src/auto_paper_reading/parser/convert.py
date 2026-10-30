@@ -83,9 +83,13 @@ def find_wps_convert() -> Path | None:
 
 
 def doc_to_pdf(src: Path, out_dir: Path, timeout: int = 180, *, backend: str = "libreoffice") -> Path:
-    """Convert into a private staging directory, validate, then replace the output.
+    """Convert using short temporary paths, validate, then publish atomically.
 
-    LibreOffice uses an isolated user profile for every call. No GUI, remote
+    Office never sees the user's deep input/output paths. LibreOffice uses
+    an isolated profile in the system temporary directory for every call.
+    The validated PDF is copied to a temporary file beside the destination
+    before replacement, so publication also works across filesystems.
+    No GUI, remote
     service, default-app changes, or automatic fallback to WPS are involved.
     """
     if backend not in ("libreoffice", "wps"):
@@ -111,19 +115,21 @@ def doc_to_pdf(src: Path, out_dir: Path, timeout: int = 180, *, backend: str = "
     out_dir = Path(out_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / f"{src.stem}.pdf"
-    with tempfile.TemporaryDirectory(prefix=".paper-pdf-", dir=out_dir, ignore_cleanup_errors=True) as temporary:
+    with tempfile.TemporaryDirectory(prefix="apr-", ignore_cleanup_errors=True) as temporary:
         stage = Path(temporary)
-        converted = stage / out.name
+        local_src = stage / ("input" + src.suffix.lower())
+        shutil.copyfile(src, local_src)
+        converted = stage / "input.pdf"
         if backend == "libreoffice":
-            profile = (stage / "profile").as_uri()
+            profile = (stage / "p").as_uri()
             cmd = [str(exe), f"-env:UserInstallation={profile}",
                    "--headless", "--nologo", "--nodefault", "--norestore",
-                   "--convert-to", "pdf:writer_pdf_Export", "--outdir", str(stage), str(src)]
+                   "--convert-to", "pdf:writer_pdf_Export", "--outdir", str(stage), str(local_src)]
         else:
-            cmd = [str(exe), "word2pdf", str(src), "-o", str(converted)]
+            cmd = [str(exe), "word2pdf", str(local_src), "-o", str(converted)]
         try:
             proc = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=timeout,
+                cmd, cwd=stage, capture_output=True, text=True, timeout=timeout,
                 encoding="utf-8", errors="replace",
                 **({"creationflags": subprocess.CREATE_NO_WINDOW} if sys.platform == "win32" else {}),
             )
@@ -140,5 +146,15 @@ def doc_to_pdf(src: Path, out_dir: Path, timeout: int = 180, *, backend: str = "
                     raise ValueError("PDF is empty, encrypted, or not a PDF")
         except Exception as error:
             raise RuntimeError(f"{backend} produced an invalid PDF / PDF 无效: {error}") from error
-        converted.replace(out)
+        publication = None
+        try:
+            with tempfile.NamedTemporaryFile(prefix=".apr-", suffix=".pdf",
+                                             dir=out_dir, delete=False) as target:
+                publication = Path(target.name)
+                with converted.open("rb") as source:
+                    shutil.copyfileobj(source, target)
+            publication.replace(out)
+        finally:
+            if publication is not None:
+                publication.unlink(missing_ok=True)
     return out

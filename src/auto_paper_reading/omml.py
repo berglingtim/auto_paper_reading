@@ -81,6 +81,8 @@ def _run(text: str, sty: str | None = None) -> etree._Element:
     r = _elem("r")
     if sty:
         rpr = etree.SubElement(r, _M + "rPr")
+        if sty == "p":
+            etree.SubElement(rpr, _M + "nor")
         s = etree.SubElement(rpr, _M + "sty")
         s.set(_M + "val", sty)
     # 西文/数字统一 Times New Roman；公式变量斜体由 OMML 默认数学样式保留
@@ -97,6 +99,40 @@ def _run(text: str, sty: str | None = None) -> etree._Element:
 def _fill(container: etree._Element, items: list) -> None:
     for it in items:
         container.append(it)
+
+
+def _style_group(items: list[etree._Element], style: str) -> list[etree._Element]:
+    """Apply an alphabet style without overwriting explicit inner styles."""
+    for item in items:
+        for run in item.iter(_M + "r"):
+            props = run.find(_M + "rPr")
+            if props is None:
+                props = _elem("rPr")
+                run.insert(0, props)
+            if props.find(_M + "sty") is None:
+                if style == "p":
+                    props.insert(0, _elem("nor"))
+                props.append(_elem("sty", val=style))
+    return _join_plain_runs(items)
+
+
+def _join_plain_runs(items: list[etree._Element]) -> list[etree._Element]:
+    """Keep label words together; older Office importers space separate runs."""
+    joined = []
+    for item in items:
+        if item.tag != _M + "r":
+            item[:] = _join_plain_runs(list(item))
+        previous = joined[-1] if joined else None
+        if (previous is not None and previous.tag == item.tag == _M + "r"
+                and item.find(_M + "rPr/" + _M + "nor") is not None
+                and etree.tostring(previous.find(_M + "rPr"))
+                    == etree.tostring(item.find(_M + "rPr"))
+                and etree.tostring(previous.find(_W + "rPr"))
+                    == etree.tostring(item.find(_W + "rPr"))):
+            previous.find(_M + "t").text += item.find(_M + "t").text or ""
+        else:
+            joined.append(item)
+    return joined
 
 
 class LatexParser:
@@ -226,13 +262,9 @@ class LatexParser:
             return [self.parse_delimiter()]
         if cmd in ("mathbb", "mathbf", "mathrm", "operatorname", "mathit"):
             base = self.parse_group()
-            if cmd in ("mathbb", "mathbf"):
-                for it in base:
-                    for r in it.iter(_M + "r"):
-                        rpr = etree.SubElement(r, _M + "rPr")
-                        sty = etree.SubElement(rpr, _M + "sty")
-                        sty.set(_M + "val", "b")
-            return base
+            style = {"mathbb": "b", "mathbf": "b", "mathrm": "p",
+                     "operatorname": "p", "mathit": "i"}[cmd]
+            return _style_group(base, style)
         if cmd == "text":
             if self.peek() == "{":
                 self.next()
@@ -244,7 +276,7 @@ class LatexParser:
                     elif self.s[self.i] == "}":
                         depth -= 1
                     self.i += 1
-                return [_run(self.s[start : self.i - 1])]
+                return [_run(self.s[start : self.i - 1], sty="p")]
             raise LatexError("\\text 需要 {…}")
         if cmd in FUNCS:
             name = self.parse_scripts([_run(cmd, sty="p")])
